@@ -132,7 +132,6 @@
   .tri-img:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgb(0 0 30/.10),rgb(0 0 30/.38));pointer-events:none}
   .tri-logo{position:absolute;left:12%;right:12%;top:0;bottom:0;display:grid;place-items:center;transform:translateZ(70px);will-change:transform;pointer-events:none;filter:drop-shadow(0 10px 24px rgb(0 0 30/.35))}
   .tri-logo img{display:block;width:auto;max-width:100%;height:auto;max-height:22%}
-  .tri-client{color:var(--fg2)}
   .tri-d{color:var(--fg2);line-height:1.4;max-width:30ch}
   .tri-p:focus-visible{outline:none}
   .tri-p:focus-visible .tri-img{outline:3px solid currentColor;outline-offset:4px}
@@ -867,7 +866,7 @@
     const gap=mobile?10:Math.min(24,Math.max(12,vw*.012));
     const w3=(vw-2*g-2*gap)/3;
     const headH=r2.h*k;
-    const capH=mobile?78:Math.round(fsTitle*.75+Math.max(19,vw*.0135)*1.45+Math.max(19,vw*.0135)*4.2+70);   // titre + 3 lignes + « Lire la suite »
+    const capH=mobile?58:Math.round(fsTitle*.75+Math.max(19,vw*.0135)*4.2+70);   // titre + 3 lignes + « Lire la suite »
     const avail=vh-hdrH-headH-(mobile?24:40)-capH-g*1.4;
     const imgH=Math.max(mobile?140:200, Math.min(avail, w3*(mobile?2.1:1.05)));
     const headTop=hdrH+Math.max(8,(vh-hdrH-(headH+(mobile?24:40)+imgH+capH))/2-g*.2);
@@ -876,7 +875,7 @@
     const TRIP=[{client:"Schneider Electric", logo:"media/schneider.svg", bg:"", color:"#1f2a22"},
                 {client:"Opinel", logo:"media/opinel.svg", bg:"media/clients/opinel.jpg"},
                 {client:"CEA", logo:"media/logos/cea-white.png", bg:"", color:"#a42a2a"}];
-    tri.innerHTML=TEXTS.list.map((n,i)=>`<a class="tri-p" href="#${SLUGS[i]}" tabindex="-1"><span class="tri-img"><canvas class="tri-slice"></canvas><span class="tri-own" style="${TRIP[i].bg?`background-image:url(${TRIP[i].bg})`:`background:${TRIP[i].color}`}"></span></span><span class="tri-logo"><img src="${TRIP[i].logo}" alt="${esc(TRIP[i].client)}"></span><span class="tri-cap"><span class="tri-client">${esc(TRIP[i].client)}</span><span class="tri-t">${esc(n).replace(/-/g,"\u2011")}</span><span class="tri-d">${esc(TEXTS.desc[i])}</span><span class="tri-more">Lire la suite</span></span></a>`).join("");
+    tri.innerHTML=TEXTS.list.map((n,i)=>`<a class="tri-p" href="#${SLUGS[i]}" tabindex="-1"><span class="tri-img"><canvas class="tri-slice"></canvas><span class="tri-own" style="${TRIP[i].bg?`background-image:url(${TRIP[i].bg})`:`background:${TRIP[i].color}`}"></span></span><span class="tri-logo"><img src="${TRIP[i].logo}" alt="${esc(TRIP[i].client)}"></span><span class="tri-cap"><span class="tri-t">${esc(n).replace(/-/g,"\u2011")}</span><span class="tri-d">${esc(TEXTS.desc[i])}</span><span class="tri-more">Lire la suite</span></span></a>`).join("");
     const triP=[...tri.children];
     const lastPoster=POSTER[vidFor(TEXTS.list.length-1)];
     const R0=radius;
@@ -889,7 +888,7 @@
       sl.style.backgroundImage=`url(${lastPoster})`;
       Object.assign(sl.style,{width:px(card.w), height:px(card.h), left:px(-i*card.w/3)});
       sl.width=Math.round(card.w); sl.height=Math.round(card.h);
-      gsap.set(a.querySelectorAll(".tri-client,.tri-t,.tri-d,.tri-more"),{opacity:0, y:rm?0:18});
+      gsap.set(a.querySelectorAll(".tri-t,.tri-d,.tri-more"),{opacity:0, y:rm?0:18});
       gsap.set(a.querySelector(".tri-logo"),{opacity:0, y:rm?0:90, z:70, scale:rm?1:.82});
     });
     if(rm){
@@ -897,7 +896,7 @@
       tl.set(tri,{autoAlpha:1}, t+RP*.15);
       triP.forEach((a,i)=>{ tl.set(a,{left:g+i*(w3+gap), top:imgTop, width:w3, height:imgH, borderRadius:R0}, t+RP*.15); tl.set(a.querySelector(".tri-own"),{opacity:1}, t+RP*.15); });
       tl.fromTo(tri,{opacity:0},{opacity:1, duration:RP*.25}, t+RP*.2);
-      tl.to(tri.querySelectorAll(".tri-client,.tri-t,.tri-d,.tri-more,.tri-logo"),{opacity:1, duration:RP*.2}, t+RP*.4);
+      tl.to(tri.querySelectorAll(".tri-t,.tri-d,.tri-more,.tri-logo"),{opacity:1, duration:RP*.2}, t+RP*.4);
     } else {
       // a. image pleine carte
       tl.to([xpCtrl,mcapIn],{autoAlpha:0, duration:RP*.08}, t);
@@ -917,7 +916,7 @@
       // d. titre, liste, légendes
       tl.to(s2,{y:`+=${headTop-ts.y}`, duration:RP*.42, ease:INOUT}, cut+RP*.12);
       tl.to(list,{autoAlpha:0, y:-20, duration:RP*.18, ease:"power2.in"}, cut);
-      triP.forEach((a,i)=>tl.to(a.querySelectorAll(".tri-client,.tri-t,.tri-d,.tri-more"),{opacity:1, y:0, duration:RP*.26, ease:"power3.out", stagger:RP*.04}, cut+RP*.46+i*RP*.06));
+      triP.forEach((a,i)=>tl.to(a.querySelectorAll(".tri-t,.tri-d,.tri-more"),{opacity:1, y:0, duration:RP*.26, ease:"power3.out", stagger:RP*.04}, cut+RP*.46+i*RP*.06));
       // les logos arrivent en retard sur leur panneau, comme posés sur un plan plus proche
       triP.forEach((a,i)=>tl.to(a.querySelector(".tri-logo"),{opacity:1, y:0, scale:1, duration:RP*.34, ease:"power3.out"}, cut+RP*.38+i*RP*.07));
     }
