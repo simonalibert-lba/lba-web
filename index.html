@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="loading">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Séquence cover LBA</title>
 <link rel="preload" href="fonts/Maax-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/raisonne-600.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   @font-face{font-family:Maax;src:url(fonts/Maax-Regular.woff2) format("woff2"),url(fonts/Maax-Regular.woff) format("woff");font-weight:400;font-style:normal;font-display:block}
   @font-face{font-family:Raisonne;src:url(fonts/raisonne-600.woff2) format("woff2");font-weight:600;font-style:normal;font-display:block}
@@ -30,6 +31,18 @@
     --radius:clamp(22px,2.6vw,38px);      /* repli : arrondi classique */      /* avec corner-shape: squircle, l'arrondi devient continu, comme chez Apple */
   }
   *,:before,:after{box-sizing:border-box}
+  /* ---------- Préchargement : sur le bleu, le nom en entier, qui se replie en « lba » puis rejoint l'en-tête ---------- */
+  html.loading{overflow:hidden}
+  html.loading .logo{opacity:0}
+  .pre{position:fixed;inset:0;z-index:60;pointer-events:none}
+  .pre-bg{position:absolute;inset:0;background:var(--bg)}
+  .pre-center{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:1.75rem}
+  .pre-logo{display:inline-flex;align-items:baseline;white-space:pre;font-family:Raisonne,var(--ff);font-weight:600;font-size:clamp(3rem,8vw,7.5rem);letter-spacing:-.02em;line-height:1;color:#fff;
+    clip-path:inset(-14% -6% -32% -6%);visibility:hidden}
+  .pre-logo .c{display:inline-block;will-change:transform}
+  .pre-logo .c.d{overflow:visible}
+  .pre.gone{display:none}
+  .logo.intro-clip{clip-path:inset(-30% -200% -40% -6%)}
   html{background:var(--bg);color:var(--fg);font-family:var(--ff);font-weight:400;font-synthesis:none;-webkit-font-smoothing:antialiased}
   body{margin:0;font-size:var(--t-m);line-height:1.45}
   .xl{font-size:var(--t-xl);line-height:1.04;letter-spacing:-.025em}
@@ -46,9 +59,10 @@
   .site-header{view-transition-name:site-header;position:fixed;inset:0 0 auto 0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:2rem;padding:1.5rem var(--gutter);pointer-events:none}
   .site-header>*{pointer-events:auto}
   /* Logo : « lba » se déplie en « la bonne agence » au survol ou au focus */
-  .logo{display:inline-flex;align-items:baseline;font-family:Raisonne,var(--ff);font-weight:600;font-size:clamp(2.75rem,3.6vw,4rem);letter-spacing:-.02em;line-height:1;color:inherit;text-decoration:none;white-space:pre}
-  .logo .x{display:inline-block;overflow:hidden;max-width:0;opacity:0;vertical-align:bottom;transition:max-width .7s var(--ease),opacity .45s ease}
-  .logo:hover .x,.logo:focus-visible .x{max-width:var(--w);opacity:1}
+  .logo{display:inline-flex;align-items:baseline;font-family:Raisonne,var(--ff);font-weight:600;font-size:clamp(2.2rem,2.88vw,3.2rem);letter-spacing:-.02em;line-height:1;color:inherit;text-decoration:none;white-space:pre}
+  /* les lettres en plus (« a », « onne », « gence ») : largeur pilotée par GSAP, découpe large en hauteur pour les accents et le « g » */
+  .logo .x{display:inline-block;max-width:0;vertical-align:bottom;white-space:pre;clip-path:inset(-30% 0 -26% 0)}
+  .logo .lc{display:inline-block;will-change:transform}
   .logo:focus-visible{outline:2px solid currentColor;outline-offset:6px;border-radius:6px}
 
   .site-nav{position:relative;display:flex;align-items:center;padding:5px;border-radius:999px;font-size:var(--t-m);line-height:1;
@@ -57,7 +71,10 @@
   .site-header.on-media .site-nav{background-color:var(--glass);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
   .nav-list{position:relative;z-index:1;display:flex;align-items:center;list-style:none;margin:0;padding:0}
   .nav-list a{display:inline-flex;align-items:center;gap:.45em;min-height:40px;padding:0 1.05em;border-radius:999px;color:inherit;text-decoration:none;transition:color .25s ease}
-    .nav-list a:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+    .nav-list a:focus-visible,.nav-btn:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+  .nav-btn{display:inline-flex;align-items:center;min-height:40px;padding:0 1.05em;border:0;border-radius:999px;background:none;color:inherit;font:inherit;cursor:pointer}
+  /* intro : chaque entrée du menu monte dans sa propre fenêtre, comme les mots de la phrase et les lettres du logo */
+  .nav-list.intro-mask li{clip-path:inset(0 -10%)}
   .nav-glow{position:absolute;top:5px;left:0;height:40px;width:0;border-radius:999px;background:var(--glow);opacity:0;visibility:hidden;pointer-events:none;z-index:0}
   .burger-btn{display:none;width:40px;height:40px;border:0;border-radius:50%;background:none;color:inherit;cursor:pointer;place-items:center}
   .burger{display:block;width:18px;height:1.5px;background:currentColor;position:relative}
@@ -86,6 +103,41 @@
   .roll{display:inline-grid}
   .roll .i{grid-area:1/1;justify-self:start}
   .s2 .w,.s2 .i,.s2 .k{will-change:transform}
+  /* calque de vol : une copie lettre à lettre de la phrase, posée au pixel près sur le texte réel le temps de la transition */
+  .flyer{position:absolute;inset:0;pointer-events:none;visibility:hidden}
+  .fc{position:absolute;left:0;top:0;white-space:pre;font-size:var(--fs1);line-height:normal;letter-spacing:0;transform-origin:0 0;will-change:transform}
+  .fi{display:inline-grid;will-change:transform}
+  .fi>span{grid-area:1/1}
+  /* flou de bougé : trois traînées de la lettre, décalées à l'opposé de sa course ; invisibles à l'arrêt (--mb = 0) */
+  .fi{text-shadow:
+      calc(var(--bx,0)*-1px) calc(var(--by,0)*-1px) 2px rgb(255 255 255/calc(.30*var(--mb,0))),
+      calc(var(--bx,0)*-2px) calc(var(--by,0)*-2px) 3px rgb(255 255 255/calc(.17*var(--mb,0))),
+      calc(var(--bx,0)*-3px) calc(var(--by,0)*-3px) 5px rgb(255 255 255/calc(.08*var(--mb,0)))}
+  /* ---------- Récapitulatif : la carte se fend en trois ---------- */
+  .tri{position:absolute;inset:0;pointer-events:none;visibility:hidden}
+  .layer-s2{z-index:2;pointer-events:none}   /* le titre passe au-dessus des lames quand elles se croisent */
+  .tri.on{pointer-events:auto}
+  .tri-p{position:absolute;display:block;color:inherit;text-decoration:none}
+  .tri-img{position:absolute;inset:0;overflow:hidden;border-radius:inherit;background:var(--panel);isolation:isolate}
+  .tri-own{position:absolute;inset:0;background-repeat:no-repeat}
+  .tri-slice{position:absolute;top:0;display:block;background-size:cover;background-position:center}
+  .tri-own{background-size:cover;background-position:center;opacity:0}
+  .tri-cap{position:absolute;left:0;right:0;top:100%;padding-top:1rem;display:grid;gap:.4rem}
+  .tri-t{font-size:var(--t-l);line-height:1.15;letter-spacing:-.015em}
+  .tri-more{justify-self:start;margin-top:.35rem;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.24em;transition:text-decoration-color .3s ease}
+  .tri-p:hover .tri-more{text-decoration-color:transparent}
+  /* pictogramme sur un plan avant : il se décale du panneau au défilement et à l'inclinaison */
+  .tri-p{transform-style:preserve-3d}
+  /* logo client sur un plan avant ; l'image du projet en fond, assombrie vers le bas pour le contraste */
+  .tri-img:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgb(0 0 30/.10),rgb(0 0 30/.38));pointer-events:none}
+  .tri-logo{position:absolute;left:12%;right:12%;top:0;bottom:0;display:grid;place-items:center;transform:translateZ(70px);will-change:transform;pointer-events:none;filter:drop-shadow(0 10px 24px rgb(0 0 30/.35))}
+  .tri-logo img{display:block;width:auto;max-width:100%;height:auto;max-height:22%}
+  .tri-client{color:var(--fg2)}
+  .tri-d{color:var(--fg2);line-height:1.4;max-width:30ch}
+  .tri-p:focus-visible{outline:none}
+  .tri-p:focus-visible .tri-img{outline:3px solid currentColor;outline-offset:4px}
+  @supports (corner-shape:squircle){ .tri-p,.tri-img{corner-shape:squircle} }
+  @media (width<=767px){ .tri-t{font-size:var(--t-m);line-height:1.25} .tri-d,.tri-more{display:none} .tri-cap{padding-top:.6rem} .tri-logo img{max-height:16%} }
   .title-sm{position:absolute;left:var(--gutter);letter-spacing:var(--ls);line-height:var(--lh);visibility:hidden}
 
   .list{position:absolute;left:var(--gutter);margin:0;padding:0;list-style:none;display:grid;row-gap:clamp(.75rem,1.5vw,1.5rem)}
@@ -97,7 +149,7 @@
   @media (prefers-reduced-motion:reduce){ .list li{transition:none} }
 
   /* Carte média */
-  .media{--m:12px;--r:var(--radius);position:absolute;left:0;top:0;width:0;height:0;border-radius:var(--r);overflow:hidden;background:var(--panel);transform-origin:0 0;isolation:isolate;view-transition-name:xp-media;
+  .media{--m:12px;--r:var(--radius);position:absolute;left:0;top:0;width:0;height:0;border-radius:var(--r);overflow:hidden;background:var(--panel);transform-origin:0 0;isolation:isolate;
     display:flex;flex-direction:column;padding:var(--m)}
   /* rayon intérieur = rayon extérieur moins la marge : les deux courbes restent concentriques */
   .mv{position:relative;flex:1 1 auto;min-height:0;border-radius:max(0px,calc(var(--r) - var(--m)));overflow:hidden;background:var(--c-bg)}
@@ -128,6 +180,29 @@
   .back{display:inline-flex;align-items:center;gap:.5em;height:44px;padding:0 1.15em;border:0;border-radius:999px;color:#fff;font:inherit;font-size:var(--t-m);line-height:1;cursor:pointer}
   .xp-body{padding:clamp(4rem,10vh,8rem) var(--gutter);display:grid;gap:1rem;max-width:60rem}
   .xp-body p{color:var(--fg2)}
+
+  /* ---------- Pages étude de cas et offre (même mécanique que la page expertise) ---------- */
+  .pg-page{position:fixed;inset:0;z-index:15;overflow:auto;background:var(--bg);display:none;overscroll-behavior:contain}
+  .pg-page.open{display:block}
+  .pg-hero{position:relative;height:100vh;overflow:hidden;background:var(--pc,var(--panel));color:#fff}
+  .pg-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .pg-hero.has-img:after{content:"";position:absolute;inset:auto 0 0 0;height:55%;background:linear-gradient(transparent,rgb(0 0 20/.6));pointer-events:none}
+  .pg-hero:not(.has-img) img{display:none}
+  .pg-title{position:absolute;left:var(--gutter);right:var(--gutter);bottom:clamp(5.5rem,14vh,9rem);z-index:1;font-size:var(--fs2);line-height:var(--lh);letter-spacing:var(--ls);max-width:16ch}
+  .pg-hero.is-offer .pg-title{font-size:var(--t-xl);max-width:20ch}
+  .pg-body{padding:var(--sec) var(--gutter);display:grid;gap:var(--head-gap)}
+  .pg-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.5rem;margin:0}
+  .pg-meta div{display:grid;gap:.3rem;border-top:1px solid rgb(255 255 255/.2);padding-top:1rem}
+  .pg-meta dt{color:var(--fg2)} .pg-meta dd{margin:0}
+  .pg-lead{font-size:var(--t-l);line-height:1.2;letter-spacing:-.015em;max-width:26ch}
+  .pg-gal{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1rem,1.4vw,1.25rem)}
+  .pg-gal span{aspect-ratio:4/3;border-radius:var(--radius);background:var(--card);display:grid;place-items:center;color:var(--fg2)}
+  .pg-next{display:grid;gap:.5rem;padding:var(--head-gap) 0;border-top:1px solid rgb(255 255 255/.2);color:inherit;text-decoration:none}
+  .pg-next-k{color:var(--fg2)}
+  .pg-next-t{font-size:var(--t-xl);line-height:1.04;letter-spacing:-.025em;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.12em;text-decoration-color:transparent;transition:text-decoration-color .3s ease;justify-self:start}
+  .pg-next:hover .pg-next-t,.pg-next:focus-visible .pg-next-t{text-decoration-color:currentColor}
+  @media (width<=767px){ .pg-meta{grid-template-columns:1fr 1fr} .pg-gal{grid-template-columns:1fr} }
+  @supports (corner-shape:squircle){ .pg-gal span{corner-shape:squircle} }
 
   /* View Transitions */
   ::view-transition-group(xp-media){animation-duration:.75s;animation-timing-function:cubic-bezier(.16,1,.3,1)}
@@ -185,26 +260,37 @@
 
   /* ---------- Typologies : texte fixe à gauche, références qui défilent à droite ---------- */
   .typo{background:var(--bg)}
-  .ty-ch{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(1.5rem,4vw,4rem);padding:0 var(--gutter)}
-  .ty-ch+.ty-ch{margin-top:var(--head-gap)}
-  .ty-text{position:sticky;top:0;height:100vh;display:flex;align-items:center}
-  .ty-in{display:grid;justify-items:start;gap:1.25rem;width:100%}
-  .ty-t{max-width:21em}
-  .ty-t{font-size:var(--t-l);line-height:1.2;letter-spacing:-.015em}
+  .typo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(1.5rem,4vw,4rem);padding:0 var(--gutter)}
+  /* colonne de gauche ancrée pendant toute la section ; les trois textes occupent la même place */
+  .ty-aside{position:sticky;top:0;height:100vh;display:flex;align-items:center}
+  .ty-stack{position:relative;display:grid;width:100%;font-size:var(--t-l)}
+  .ty-txt{grid-area:1/1;display:grid;justify-items:start;align-content:start;gap:1.25rem;font-size:var(--t-m)}
+  .ty-txt:not(.on){pointer-events:none}
+  .ty-txt:not(.on) .ty-t,.ty-txt:not(.on) .ty-more{opacity:0}
+  .ty-t{max-width:21em;font-size:var(--t-l);line-height:1.2;letter-spacing:-.015em}
   .ty-t span{display:block;color:var(--fg2)}
-  .ty-refs{display:grid;gap:clamp(1rem,1.4vw,1.25rem);padding:clamp(2rem,6vh,4rem) 0}
+  .ty-more{margin-top:-.25rem}
+  /* l'anneau reste en place, suspendu dans la marge, pendant que les textes changent */
+  .ty-ring{position:absolute;left:-1.22em;top:.22em;width:.8em;height:.8em;transform:rotate(-90deg);overflow:visible}
+  .ty-ring circle{fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+  .ty-ring .a-t{stroke-opacity:.3}
+  .ty-col{position:relative;display:grid;align-content:start;gap:var(--head-gap);padding:clamp(4rem,12vh,8rem) 0}
+  /* calque WebGL : collé à l'écran pendant la colonne, sans prendre de place */
+  .ty-gl{position:sticky;top:0;height:100vh;margin-bottom:calc(-100vh - var(--head-gap));z-index:1;pointer-events:none;align-self:start}
+  .ty-gl canvas{display:block;width:100%;height:100%}
+  .p-gl{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+  .ty-refs{display:grid;gap:clamp(1rem,1.4vw,1.25rem)}
   .ty-ref{position:relative;margin:0;border-radius:var(--radius);overflow:hidden;background:var(--panel)}
   .ty-ref img{position:absolute;inset:-9% 0;width:100%;height:118%;object-fit:cover;display:block;will-change:transform}
   .ty-ref.wide{aspect-ratio:3/2} .ty-ref.tall{aspect-ratio:4/5}
-  .ty-ring{width:.8em;height:.8em;margin-right:.38em;vertical-align:-.06em;transform:rotate(-90deg);overflow:visible}
-  .ty-ring circle{fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
-  .ty-ring .a-t{stroke-opacity:.3}
-  .ty-more{margin-top:-.25rem}
   @supports (corner-shape:squircle){ .ty-ref{corner-shape:squircle} }
   @media (width<=767px){
-    .ty-ch{grid-template-columns:1fr;gap:0}
-    .ty-text{position:static;height:auto;padding:clamp(3rem,10vh,5rem) 0 1.5rem}
-    .ty-refs{padding:0}
+    .typo{grid-template-columns:1fr;gap:0}
+    .ty-aside{z-index:2;height:auto;padding:4.5rem 0 1.5rem;background:var(--bg);box-shadow:0 1.25rem 1.25rem -1.25rem var(--bg)}
+    .ty-ring{position:static;display:block;margin-bottom:.6rem}
+    .ty-stack{display:block}
+    .ty-txt{display:none} .ty-txt.on{display:grid}
+    .ty-col{padding-top:.5rem}
   }
   @media (prefers-reduced-motion:reduce){ .ty-ref img{inset:0;height:100%} }
 
@@ -246,6 +332,12 @@
 </head>
 <body>
 
+<div class="pre" id="pre" aria-hidden="true">
+  <div class="pre-bg" id="preBg"></div>
+  <div class="pre-center">
+    <span class="pre-logo" id="preLogo" aria-hidden="true"><span class="c k">l</span><span class="c d" data-g="1">a</span><span class="c d" data-g="1">&nbsp;</span><span class="c k">b</span><span class="c d" data-g="2">o</span><span class="c d" data-g="2">n</span><span class="c d" data-g="2">n</span><span class="c d" data-g="2">e</span><span class="c d" data-g="2">&nbsp;</span><span class="c k">a</span><span class="c d" data-g="3">g</span><span class="c d" data-g="3">e</span><span class="c d" data-g="3">n</span><span class="c d" data-g="3">c</span><span class="c d" data-g="3">e</span></span>
+  </div>
+</div>
 <header class="site-header" id="hdr">
   <a class="logo" id="logo" href="#" data-go="top" aria-label="La Bonne Agence, accueil"><span aria-hidden="true">l</span><span class="x" aria-hidden="true">a </span><span aria-hidden="true">b</span><span class="x" aria-hidden="true">onne </span><span aria-hidden="true">a</span><span class="x" aria-hidden="true">gence</span></a>
   <nav class="site-nav" id="nav" aria-label="Navigation principale">
@@ -256,6 +348,7 @@
       <li><a href="#offre" data-go="offre">Offres</a></li>
       <li><a href="#clients" data-go="clients">Projets</a></li>
       <li><a href="#contact" data-go="contact">Contact</a></li>
+      <li><button type="button" class="nav-btn" id="reload">Recharger</button></li>
     </ul>
     <button type="button" class="burger-btn" aria-label="Menu"><span class="burger"></span></button>
   </nav>
@@ -264,11 +357,13 @@
 <main id="main">
   <section class="stage" id="stage" aria-label="Cover">
     <div class="layer"><h1 class="s1" id="s1"></h1></div>
-    <div class="layer"><div class="s2" id="s2" aria-hidden="true"></div></div>
+    <div class="layer layer-s2"><div class="s2" id="s2" aria-hidden="true"></div></div>
+    <div class="flyer" id="flyer" aria-hidden="true"></div>
     <div class="title-sm" id="titleSm" aria-hidden="true"></div>
     <ul class="list" id="list" aria-label="Expertises"></ul>
 
 
+    <div class="tri" id="tri" aria-label="Nos trois expertises"></div>
     <div class="media" id="media">
       <div class="mv" id="mv">
         <video src="media/xp-1.mp4" poster="media/xp-1.jpg" muted loop playsinline preload="auto" aria-hidden="true"></video>
@@ -339,27 +434,28 @@
   </section>
 
   <section class="typo" id="typologies" aria-label="Typologies de projets">
-    <article class="ty-ch">
-      <div class="ty-text"><div class="ty-in">
-        <h2 class="ty-t"><svg class="ty-ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.020"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.353"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.687"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.020" data-seg="0.29"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.353" data-seg="0.29"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.687" data-seg="0.29"/></svg>Applications métier<span>Des outils sur mesure qui simplifient le quotidien des équipes, conçus avec celles et ceux qui les utilisent.</span></h2>
-        <a class="ty-more ul" href="#">Lire la suite</a>
-      </div></div>
-      <div class="ty-refs"><figure class="ty-ref wide"><img src="media/ty/xp-1-1.jpg" alt="" loading="lazy" data-speed="0.6"></figure><figure class="ty-ref tall"><img src="media/clients/cea.jpg" alt="" loading="lazy" data-speed="1.3"></figure><figure class="ty-ref wide"><img src="media/ty/xp-1-3.jpg" alt="" loading="lazy" data-speed="0.9"></figure><figure class="ty-ref tall"><img src="media/ty/xp-2-2.jpg" alt="" loading="lazy" data-speed="1.5"></figure><figure class="ty-ref wide"><img src="media/xp-1.jpg" alt="" loading="lazy" data-speed="1"></figure></div>
-    </article>
-    <article class="ty-ch">
-      <div class="ty-text"><div class="ty-in">
-        <h2 class="ty-t"><svg class="ty-ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.020"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.353"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.687"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.020" data-seg="0.29"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.353" data-seg="0.29"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.687" data-seg="0.29"/></svg>Sites web & e‑commerce<span>Des sites et des boutiques rapides, accessibles et faciles à faire vivre, pensés pour durer.</span></h2>
-        <a class="ty-more ul" href="#">Lire la suite</a>
-      </div></div>
-      <div class="ty-refs"><figure class="ty-ref tall"><img src="media/clients/opinel.jpg" alt="" loading="lazy" data-speed="0.6"></figure><figure class="ty-ref wide"><img src="media/ty/xp-2-1.jpg" alt="" loading="lazy" data-speed="1.3"></figure><figure class="ty-ref tall"><img src="media/clients/dans-le-noir.jpg" alt="" loading="lazy" data-speed="0.9"></figure><figure class="ty-ref wide"><img src="media/ty/xp-2-3.jpg" alt="" loading="lazy" data-speed="1.5"></figure><figure class="ty-ref wide"><img src="media/xp-2.jpg" alt="" loading="lazy" data-speed="1"></figure></div>
-    </article>
-    <article class="ty-ch">
-      <div class="ty-text"><div class="ty-in">
-        <h2 class="ty-t"><svg class="ty-ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.020"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.353"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.687"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.020" data-seg="0.29"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.353" data-seg="0.29"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.687" data-seg="0.29"/></svg>IA & automatisation<span>Des usages de l'IA utiles et maîtrisés, intégrés à vos outils pour faire gagner du temps.</span></h2>
-        <a class="ty-more ul" href="#">Lire la suite</a>
-      </div></div>
-      <div class="ty-refs"><figure class="ty-ref wide"><img src="media/ty/xp-1-2.jpg" alt="" loading="lazy" data-speed="0.6"></figure><figure class="ty-ref tall"><img src="media/clients/schneider.jpg" alt="" loading="lazy" data-speed="1.3"></figure><figure class="ty-ref wide"><img src="media/ty/xp-1-4.jpg" alt="" loading="lazy" data-speed="0.9"></figure><figure class="ty-ref tall"><img src="media/ty/xp-2-4.jpg" alt="" loading="lazy" data-speed="1.5"></figure><figure class="ty-ref wide"><img src="media/ty/xp-2-1.jpg" alt="" loading="lazy" data-speed="1"></figure></div>
-    </article>
+    <div class="ty-aside">
+      <div class="ty-stack">
+        <svg class="ty-ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.020"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.353"/><circle class="a-t" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0.29 1" stroke-dashoffset="-0.687"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.020"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.353"/><circle class="a-f" cx="12" cy="12" r="10" pathLength="1" stroke-dasharray="0 1" stroke-dashoffset="-0.687"/></svg>
+        <div class="ty-txt on" data-i="0">
+          <h2 class="ty-t">Applications métier<span>Des outils sur mesure qui simplifient le quotidien des équipes, conçus avec celles et ceux qui les utilisent.</span></h2>
+          <a class="ty-more ul" href="#">Lire la suite</a>
+        </div>
+        <div class="ty-txt" data-i="1">
+          <h2 class="ty-t">Sites web & e‑commerce<span>Des sites et des boutiques rapides, accessibles et faciles à faire vivre, pensés pour durer.</span></h2>
+          <a class="ty-more ul" href="#">Lire la suite</a>
+        </div>
+        <div class="ty-txt" data-i="2">
+          <h2 class="ty-t">IA & automatisation<span>Des usages de l'IA utiles et maîtrisés, intégrés à vos outils pour faire gagner du temps.</span></h2>
+          <a class="ty-more ul" href="#">Lire la suite</a>
+        </div>
+      </div>
+    </div>
+    <div class="ty-col">
+      <div class="ty-refs" data-i="0"><figure class="ty-ref wide"><img src="media/ty/xp-1-1.jpg" alt="" loading="lazy" data-speed="0.6"></figure><figure class="ty-ref tall"><img src="media/clients/cea.jpg" alt="" loading="lazy" data-speed="1.3"></figure><figure class="ty-ref wide"><img src="media/ty/xp-1-3.jpg" alt="" loading="lazy" data-speed="0.9"></figure><figure class="ty-ref tall"><img src="media/ty/xp-2-2.jpg" alt="" loading="lazy" data-speed="1.5"></figure><figure class="ty-ref wide"><img src="media/xp-1.jpg" alt="" loading="lazy" data-speed="1"></figure></div>
+      <div class="ty-refs" data-i="1"><figure class="ty-ref tall"><img src="media/clients/opinel.jpg" alt="" loading="lazy" data-speed="0.6"></figure><figure class="ty-ref wide"><img src="media/ty/xp-2-1.jpg" alt="" loading="lazy" data-speed="1.3"></figure><figure class="ty-ref tall"><img src="media/clients/dans-le-noir.jpg" alt="" loading="lazy" data-speed="0.9"></figure><figure class="ty-ref wide"><img src="media/ty/xp-2-3.jpg" alt="" loading="lazy" data-speed="1.5"></figure><figure class="ty-ref wide"><img src="media/xp-2.jpg" alt="" loading="lazy" data-speed="1"></figure></div>
+      <div class="ty-refs" data-i="2"><figure class="ty-ref wide"><img src="media/ty/xp-1-2.jpg" alt="" loading="lazy" data-speed="0.6"></figure><figure class="ty-ref tall"><img src="media/clients/schneider.jpg" alt="" loading="lazy" data-speed="1.3"></figure><figure class="ty-ref wide"><img src="media/ty/xp-1-4.jpg" alt="" loading="lazy" data-speed="0.9"></figure><figure class="ty-ref tall"><img src="media/ty/xp-2-4.jpg" alt="" loading="lazy" data-speed="1.5"></figure><figure class="ty-ref wide"><img src="media/ty/xp-2-1.jpg" alt="" loading="lazy" data-speed="1"></figure></div>
+    </div>
   </section>
 
   <section class="manifesto" id="cta" aria-label="Contact">
@@ -399,6 +495,19 @@
 </div>
 
 <!-- Page expertise : ouverte depuis la carte (View Transitions) -->
+<section class="pg-page" id="pgPage" aria-labelledby="pgTitle" data-lenis-prevent>
+  <div class="pg-hero" id="pgHero">
+    <img id="pgImg" alt="">
+    <h2 class="pg-title" id="pgTitle" tabindex="-1"></h2>
+    <div class="xp-hero-ctrl"><button type="button" class="back glass" id="pgBack">Retour</button></div>
+  </div>
+  <div class="pg-body">
+    <dl class="pg-meta" id="pgMeta"></dl>
+    <p class="pg-lead" id="pgLead"></p>
+    <div class="pg-gal" aria-hidden="true"><span>Visuel à fournir</span><span>Visuel à fournir</span></div>
+    <a class="pg-next" id="pgNext" href="#"><span class="pg-next-k" id="pgNextK"></span><span class="pg-next-t" id="pgNextT"></span></a>
+  </div>
+</section>
 <section class="xp-page" id="xpPage" aria-labelledby="xpTitle" data-lenis-prevent>
   <div class="xp-hero" id="xpHero">
     <video id="xpVideo" muted loop playsinline aria-hidden="true"></video>
@@ -418,13 +527,14 @@
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.min.js"></script>
 <script>
 (function(){
+  if("scrollRestoration" in history) history.scrollRestoration="manual";   // un rechargement repart du haut, avec l'intro
   gsap.registerPlugin(ScrollTrigger, CustomEase);
   CustomEase.create("gsvOut","M0,0 C0.16,1 0.3,1 1,1");
   CustomEase.create("gsvInOut","M0,0 C0.65,0 0.25,1 1,1");
   const OUT="gsvOut", INOUT="gsvInOut", EXIT="power3.in";
 
   // Distances en % de hauteur d'écran. E : les 3 expertises au défilement (~40 % chacune), avec un cran d'aimantation par étape
-  const CFG={ T:100, HOLD:20, TOLIST:75, E:120, smooth:true, snap:true };
+  const CFG={ T:100, HOLD:20, TOLIST:75, E:120, R:110, smooth:true, snap:true };
   const RM=matchMedia("(prefers-reduced-motion: reduce)");
   const HOVER=matchMedia("(hover: hover) and (pointer: fine)");
   const reduced=()=>RM.matches;
@@ -444,17 +554,46 @@
   const SRC=["media/xp-1.mp4","media/xp-2.mp4"], POSTER=["media/xp-1.jpg","media/xp-2.jpg"];
 
   const $=id=>document.getElementById(id);
-  const stage=$("stage"), s1=$("s1"), s2=$("s2"), titleSm=$("titleSm"), list=$("list"), media=$("media"),
+  const stage=$("stage"), s1=$("s1"), s2=$("s2"), flyer=$("flyer"), tri=$("tri"), titleSm=$("titleSm"), list=$("list"), media=$("media"),
         xpCtrl=$("xpCtrl"), playBtn=$("play"), mediaLink=$("mediaLink"), mediaLinkTxt=$("mediaLinkTxt"),
         
         hdr=$("hdr"), nav=$("nav"), glow=$("glow"), logo=$("logo"),
+        pgPage=$("pgPage"), pgHero=$("pgHero"), pgImg=$("pgImg"), pgTitle=$("pgTitle"), pgMeta=$("pgMeta"), pgLead=$("pgLead"), pgNext=$("pgNext"), pgNextK=$("pgNextK"), pgNextT=$("pgNextT"),
         xpPage=$("xpPage"), xpTitle=$("xpTitle"), xpVideo=$("xpVideo"), xpPlay=$("xpPlay"), backBtn=$("back");
   const videos=[...media.querySelectorAll("video")];
   const mcap=document.getElementById("mcap"), mcapIn=document.getElementById("mcapIn"), mcapT=document.getElementById("mcapT"), mcapD=document.getElementById("mcapD");
   const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
   /* ---------- logo qui se déplie ---------- */
-  function measureLogo(){ logo.querySelectorAll(".x").forEach(x=>{ x.style.maxWidth="none"; x.style.setProperty("--w",x.scrollWidth+"px"); x.style.maxWidth=""; }); }
+  /* ---------- Logo au survol : « lba » se déplie en « la bonne agence » ----------
+     Chaque mot s'ouvre depuis son initiale ; ses lettres se redressent depuis leur ligne de base, l'une après l'autre.
+     Au départ du survol, la même timeline joue à l'envers, un peu plus vite : chaque mot se replie de sa dernière lettre
+     vers son initiale. Un survol interrompu repart de l'endroit exact où il en était. */
+  let logoTl=null;
+  function measureLogo(){
+    const xs=[...logo.querySelectorAll(".x")];
+    xs.forEach(x=>{ if(!x.dataset.split){ x.innerHTML=[...x.textContent].map(c=>`<span class="lc">${c===" "?"&nbsp;":c}</span>`).join(""); x.dataset.split="1"; } });
+    const p=logoTl?logoTl.progress():0, rev=logoTl?logoTl.reversed():false;
+    if(logoTl) logoTl.kill();
+    gsap.set(xs,{maxWidth:"none"});
+    const ws=xs.map(x=>x.scrollWidth);
+    const chars=xs.map(x=>[...x.querySelectorAll(".lc")]);
+    gsap.set(xs,{maxWidth:0});
+    gsap.set(chars.flat(),{yPercent:90, rotationX:-70, opacity:0, transformPerspective:500, transformOrigin:"50% 100%"});
+    logoTl=gsap.timeline({paused:true, defaults:{overwrite:false}});
+    xs.forEach((x,i)=>{
+      const at=i*.06;
+      logoTl.to(x,{maxWidth:ws[i]+1, duration:.75, ease:"gsvInOut"}, at);
+      logoTl.to(chars[i],{yPercent:0, rotationX:0, opacity:1, duration:.62, ease:"gsvOut", stagger:.03}, at+.1);
+    });
+    logoTl.progress(p); if(rev) logoTl.reverse();
+  }
+  const logoOpen=()=>{ if(!logoTl) return; if(reduced()){ logoTl.progress(1).pause(); return; } logoTl.timeScale(1).play(); };
+  const logoClose=()=>{ if(!logoTl) return; if(reduced()){ logoTl.progress(0).pause(); return; } logoTl.timeScale(1.35).reverse(); };
+  logo.addEventListener("mouseenter",()=>{ if(HOVER.matches) logoOpen(); });
+  logo.addEventListener("mouseleave",()=>{ if(document.activeElement!==logo) logoClose(); });
+  logo.addEventListener("focus",()=>{ if(logo.matches(":focus-visible")) logoOpen(); });
+  logo.addEventListener("blur",logoClose);
 
   /* ---------- correspondance des mots (écran 1 → écran 2) ---------- */
   const norm=w=>w.toLowerCase().replace(/[.,;:!?'’«»"()]/g,"");
@@ -481,33 +620,11 @@
     map.forEach((k,i)=>{ if(k>=0&&pre[i].n===0){ map[i]=-1; src1.delete(k); } });
 
     s1.setAttribute("aria-label", s1lines.join(" "));
-    s1.innerHTML=`<span aria-hidden="true">`+w1.map((a,k)=>{
-      const lead=k===0?"":(brk.has(k)?"<br>":" ");
-      if(!src1.has(k)) return lead+`<span class="w"><span class="wi">${M(a,"whole")}</span></span>`;
-      const {n,caseDiff}=pre[src1.get(k)];
-      return lead+`<span class="w"><span class="wi">`+(caseDiff?K(a[0])+K(a.slice(1,n)):K(a.slice(0,n)))+M(a.slice(n),"drop")+`</span></span>`;
-    }).join("")+`</span>`;
-
-    let idx=0;
-    s2.innerHTML=lines.map(l=>`<div>`+l.split(/\s+/).map(()=>{
-      const i=idx++, b=w2[i], k=map[i];
-      if(k<0) return `<span class="w">${M(b,"whole")}</span>`;
-      const a=w1[k], {n,caseDiff}=pre[i];
-      return `<span class="w">`+(caseDiff?`<span class="m roll"><span class="i o">${esc(a[0])}</span><span class="i n">${esc(b[0])}</span></span>`+K(b.slice(1,n)):K(b.slice(0,n)))+M(b.slice(n),"add")+`</span>`;
-    }).join(" ")+`</div>`).join("");
+    s1.innerHTML=`<span aria-hidden="true">`+w1.map((a,k)=>(k===0?"":(brk.has(k)?"<br>":" "))+`<span class="w"><span class="wi">${esc(a)}</span></span>`).join("")+`</span>`;
+    s2.innerHTML=lines.map(l=>`<div>`+l.split(/\s+/).map(b=>`<span class="w">${esc(b)}</span>`).join(" ")+`</div>`).join("");
     titleSm.innerHTML=lines.map(l=>`<div>${esc(l)}</div>`).join("");
     list.innerHTML=TEXTS.list.map((s,i)=>`<li><a class="xp-item" href="#${SLUGS[i]}"><span class="m"><span class="i"><svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="r-track" cx="10" cy="10" r="8"/><circle class="r-fill" cx="10" cy="10" r="8" pathLength="1"/></svg>${esc(s)}</span></span></a></li>`).join("");
-
-    const fs2=parseFloat(getComputedStyle(s2).fontSize);
-    const w2els=[...s2.querySelectorAll(".w")];
-    const rolls=w2els.map(el=>{
-      const r=el.querySelector(".roll"); if(!r) return null;
-      const o=r.querySelector(".o"), nn=r.querySelector(".n");
-      const wo=o.getBoundingClientRect().width, wn=nn.getBoundingClientRect().width;
-      r.style.width=(wn/fs2)+"em";
-      return {o, n:nn, after:[...el.children].filter(c=>c!==r), dx:wo-wn};
-    });
-    model={w1els:[...s1.querySelectorAll(".w")], w2els, map, src1, lineOf, rolls};
+    model={w1els:[...s1.querySelectorAll(".w")], w2els:[...s2.querySelectorAll(".w")], w1, w2, map, pre, lineOf};
   }
 
   /* ---------- vidéos : changement avec léger zoom et flou qui se dissipe ---------- */
@@ -580,12 +697,12 @@
     const prev=(keep&&st)?st.progress:0;
     if(st){ st.kill(true); st=null; } if(tl){ tl.kill(); tl=null; }
     inPhase=false; hoverStep=-1;
-    gsap.set([s1,s2,titleSm,list,media,mcap,xpCtrl,...videos],{clearProps:"all"});
+    gsap.set([s1,s2,flyer,tri,titleSm,list,media,mcap,xpCtrl,...videos],{clearProps:"all"});
     render(); bindXp(); activeVid=-1;
     videos.forEach(v=>gsap.set(v,{autoAlpha:0})); showVideo(step,false,false);
 
     const rm=reduced(), {T,E,HOLD,TOLIST}=CFG;
-    const {w1els,w2els,map,src1,lineOf,rolls}=model;
+    const {w1els,w2els,w1,w2,map,pre,lineOf}=model;
     const items=[...list.children];
     const sr=stage.getBoundingClientRect();
     const rel=el=>{ const r=el.getBoundingClientRect(); return {x:r.left-sr.left,y:r.top-sr.top,w:r.width,h:r.height}; };
@@ -621,7 +738,6 @@
 
     /* états initiaux */
     gsap.set([s2,titleSm],{autoAlpha:0});
-    if(rm) rolls.forEach(R=>{ if(R) gsap.set(R.o,{yPercent:-150}); });
     items.forEach(li=>gsap.set(li.querySelector(".i"),{yPercent:rm?0:150, autoAlpha:rm?0:1}));
     gsap.set(xpCtrl,{autoAlpha:0, y:rm?0:12});
     gsap.set(mcapIn,{autoAlpha:0, y:rm?0:10});
@@ -637,44 +753,85 @@
 
     /* 1. écran 1 → écran 2 */
     if(!rm){
-      gsap.set(s2,{autoAlpha:1});
-      w2els.forEach((el,i)=>{
-        const k1=map[i];
-        if(k1<0){ gsap.set(inner(el),{yPercent:150}); return; }
-        const a=r1[k1], b=rw2[i];
-        gsap.set(el,{x:a.x-b.x, y:a.y-b.y, scale:fs1/fs2, autoAlpha:0});
-        el.querySelectorAll(".m.add > .i").forEach(x=>gsap.set(x,{yPercent:150}));
-        const R=rolls[i]; if(R){ gsap.set(R.n,{yPercent:150}); gsap.set(R.after,{x:R.dx}); }
+      /* Décantation, lettre par lettre.
+         a. Au premier cran, les lettres en trop s'atténuent : la phrase montre ce qu'elle va garder.
+         b. Elles tombent l'une après l'autre, dans l'ordre de lecture, comme un dépôt qui se forme.
+         c. Les lettres gardées s'envolent, chacune sur une courbe, avec un flou de bougé qui suit leur vitesse,
+            et se posent de gauche à droite en deux lignes ; le « s » devient « S », le « c » devient « C » juste avant de se poser.
+         d. Les lettres nouvelles (« r », « re », les points) apparaissent à leur tour, dans le même balayage.
+         Le calque de vol reprend exactement la position de chaque glyphe (mesurée sur le texte réel),
+         puis rend la main au texte réel : le crénage est juste au départ comme à l'arrivée. */
+      const glyphs=(wordEls,words)=>wordEls.map((el,k)=>{
+        const tn=el.querySelector(".wi")?el.querySelector(".wi").firstChild:el.firstChild, rg=document.createRange();
+        return [...words[k]].map((ch,j)=>{ rg.setStart(tn,j); rg.setEnd(tn,j+1); const r=rg.getBoundingClientRect(); return {x:r.left-sr.left, y:r.top-sr.top, w:r.width}; });
       });
-      // 1. distillation : les mots superflus s'éteignent un à un, dans l'ordre de lecture ;
-      //    seuls restent en pleine lumière « structure la complexité » et « construi… dans la durée »
-      const gone=[];
-      w1els.forEach((el,k1)=>{ if(!src1.has(k1)) gone.push(el); else { const d=el.querySelector(".m.drop"); if(d) gone.push(d); } });
-      const sweep=T*.05;
-      gone.forEach((el,i)=>tl.to(el,{opacity:.13, duration:T*.11, ease:"power1.inOut"}, t+i*sweep));
-      // 2. ils disparaissent ensemble…
-      const offAt=t+gone.length*sweep+T*.05;
-      tl.to(gone,{opacity:0, duration:T*.08, ease:"power2.in"}, offAt);
-      // 3. …et les mots gardés se resserrent pour devenir l'écran 2
-      const swapAt=offAt+T*.06;
-      w1els.forEach((el,k1)=>{ if(src1.has(k1)) tl.set(el.querySelectorAll(".k"),{autoAlpha:0},swapAt); });
-      w2els.forEach((el,i)=>{ if(map[i]>=0) tl.set(el,{autoAlpha:1},swapAt); });
-      w2els.forEach((el,i)=>{
-        if(map[i]<0) return;
-        const at=swapAt+T*.01+lineOf[i]*T*.05;
-        tl.to(el,{x:0, scale:1, duration:T*.44, ease:INOUT}, at);
-        tl.to(el,{y:0, duration:T*.44, ease:"power2.inOut"}, at+T*.015);
-        const R=rolls[i];
-        if(R){
-          tl.to(R.o,{yPercent:-150, duration:T*.2, ease:INOUT}, at+T*.16);
-          tl.to(R.n,{yPercent:0,   duration:T*.2, ease:INOUT}, at+T*.16);
-          tl.to(R.after,{x:0,      duration:T*.2, ease:INOUT}, at+T*.16);
+      const g1=glyphs(w1els,w1), g2=glyphs(w2els,w2), sc=fs2/fs1;
+      const wordOf2=[]; w2.forEach((b,i)=>[...b].forEach((_,j)=>wordOf2.push([i,j])));
+      const used=new Set(), fly=[], born=[];
+      let html="";
+      const node=(txt,cls,x,y)=>{ html+=`<span class="fc ${cls}" style="transform:translate(${x}px,${y}px)"><span class="fi">${txt}</span></span>`; };
+      // lettres d'arrivée : celles qui viennent de l'écran 1, puis les nouvelles
+      wordOf2.forEach(([i,j],q)=>{
+        const k=map[i], b=g2[i][j], ch=w2[i][j];
+        if(k>=0 && j<pre[i].n){
+          const a=g1[k][j], src=w1[k][j]; used.add(k+":"+j);
+          const swap=j===0 && src!==ch;
+          node(swap?`<span class="o">${esc(src)}</span><span class="n" style="opacity:0">${esc(ch)}</span>`:`<span>${esc(ch)}</span>`,"kp",a.x,a.y);
+          fly.push({q, a, b, swap, line:lineOf[i]});
+        } else { node(`<span>${esc(ch)}</span>`,"nw",b.x,b.y); born.push({q, b}); }
+      });
+      // lettres en trop
+      const drop=[];
+      w1.forEach((a,k)=>[...a].forEach((ch,j)=>{ if(!used.has(k+":"+j)){ node(`<span>${esc(ch)}</span>`,"dr",g1[k][j].x,g1[k][j].y); drop.push(g1[k][j]); } }));
+      flyer.innerHTML=html;
+      const fcs=[...flyer.children], kp=fcs.filter(e=>e.classList.contains("kp")), nw=fcs.filter(e=>e.classList.contains("nw")), dr=fcs.filter(e=>e.classList.contains("dr"));
+      gsap.set(nw,{autoAlpha:0});
+      gsap.set(s2,{autoAlpha:0});
+
+      // passage du texte réel au calque, au tout premier instant
+      tl.set(s1,{autoAlpha:0}, t+.01); tl.set(flyer,{autoAlpha:1}, t+.01);
+
+      // a. ce qui part s'atténue d'abord
+      tl.to(dr,{opacity:.28, duration:T*.1, ease:"power1.out"}, t+.01);
+      // b. puis tombe, lettre après lettre, en pivotant un peu
+      const rnd=gsap.utils.random(-1,1,.01,true);
+      const dx0=Math.min(...drop.map(d=>d.x)), dx1=Math.max(...drop.map(d=>d.x))||1;
+      dr.forEach((el,i)=>{
+        const at=t+T*.07+((drop[i].x-dx0)/Math.max(1,dx1-dx0))*T*.16 + Math.abs(rnd())*T*.03;
+        tl.to(el,{y:`+=${fs1*1.05}`, opacity:0, duration:T*.24, ease:"power2.in"}, at);
+        tl.to(el.firstElementChild,{rotation:rnd()*24, scale:.86, "--by":-9, "--mb":1, duration:T*.24, ease:"power1.in"}, at);
+      });
+      // c. les lettres gardées volent en vague vers leur place
+      const D=T*.4, W=T*.34, t0=t+T*.17;
+      const all2=[...fly.map(f=>f.b), ...born.map(b=>b.b)];
+      const bx0=Math.min(...all2.map(b=>b.x)), bx1=Math.max(...all2.map(b=>b.x+b.w));
+      const passAt=x=>t0+D+((x-bx0)/Math.max(1,bx1-bx0))*W;      // les lettres se posent de gauche à droite
+      let endAt=t0+D;
+      kp.forEach((el,n)=>{
+        const f=fly[n], landT=passAt(f.b.x+f.b.w*.5), at=landT-D, dx=f.b.x-f.a.x;
+        const lean=gsap.utils.clamp(-8,8,dx/fs1*5);
+        tl.to(el,{x:f.b.x, scale:sc, duration:D, ease:"power3.inOut"}, at);
+        tl.to(el,{y:f.b.y, duration:D, ease:"power2.inOut"}, at);
+        // courbe : la lettre se soulève puis se pose ; elle s'incline et se couche un peu dans le sens de sa course
+        // flou de bougé : maximal à mi-course, là où la lettre va le plus vite
+        const bx=gsap.utils.clamp(-14,14,dx/fs1*7), by=gsap.utils.clamp(-8,8,(f.b.y-f.a.y)/fs1*5);
+        tl.to(el.firstElementChild,{keyframes:{yPercent:[0,-46,0], rotation:[0,lean,0], skewX:[0,-lean*.5,0], "--bx":[0,bx,0], "--by":[0,by,0], "--mb":[0,1,0], easeEach:"sine.inOut"}, duration:D}, at);
+        if(f.swap){
+          tl.to(el.querySelector(".o"),{opacity:0, duration:D*.22, ease:"none"}, at+D*.6);
+          tl.to(el.querySelector(".n"),{opacity:1, duration:D*.22, ease:"none"}, at+D*.6);
         }
-        const add=el.querySelectorAll(".m.add > .i");
-        if(add.length) tl.to(add,{yPercent:0, duration:T*.24, ease:OUT}, at+T*.26);
+        endAt=Math.max(endAt,landT);
       });
-      w2els.forEach((el,i)=>{ if(map[i]<0) tl.to(inner(el),{yPercent:0, duration:T*.2, ease:OUT}, t+T*.78); });
+      // d. les lettres nouvelles apparaissent au passage du fil
+      nw.forEach((el,n)=>{
+        const b=born[n].b, at=passAt(b.x+b.w*.5)-T*.04;
+        tl.fromTo(el,{autoAlpha:0, y:b.y+fs2*.3},{autoAlpha:1, y:b.y, duration:T*.14, ease:"power3.out"}, at);
+        endAt=Math.max(endAt,at+T*.14);
+      });
+      // retour au texte réel
+      tl.set(s2,{autoAlpha:1}, endAt); tl.set(flyer,{autoAlpha:0}, endAt);
     } else {
+      flyer.innerHTML="";
       tl.to(s1,{autoAlpha:0, duration:T*.42}, t);
       tl.to(s2,{autoAlpha:1, duration:T*.48}, t+T*.48);
     }
@@ -700,12 +857,77 @@
     /* 3. tenue : les 3 expertises défilent seules (minuteur) */
     L.ex=t; tl.to({}, {duration:E}, t); t+=E;
 
-    /* 4. fin : la dernière expertise reste posée un instant, puis la scène se libère */
-    L.pj=t; tl.to({}, {duration:20}, t); t+=20; L.end=t;
+    /* 4. récapitulatif : la carte se fend en trois, chaque morceau devient l'image d'un axe
+       a. le cartouche se replie, l'image prend toute la carte ;
+       b. trois traits de coupe : la carte se sépare en trois lames qui s'écartent ;
+       c. les lames gagnent leur place côte à côte ; en route, chacune quitte l'image commune pour la sienne ;
+       d. la petite phrase monte en titre, la liste s'efface, les légendes arrivent ligne à ligne. */
+    L.pj=t;
+    const {R:RP}=CFG;
+    const gap=mobile?10:Math.min(24,Math.max(12,vw*.012));
+    const w3=(vw-2*g-2*gap)/3;
+    const headH=r2.h*k;
+    const capH=mobile?78:Math.round(fsTitle*.75+Math.max(19,vw*.0135)*1.45+Math.max(19,vw*.0135)*4.2+70);   // titre + 3 lignes + « Lire la suite »
+    const avail=vh-hdrH-headH-(mobile?24:40)-capH-g*1.4;
+    const imgH=Math.max(mobile?140:200, Math.min(avail, w3*(mobile?2.1:1.05)));
+    const headTop=hdrH+Math.max(8,(vh-hdrH-(headH+(mobile?24:40)+imgH+capH))/2-g*.2);
+    const imgTop=headTop+headH+(mobile?24:40);
+    // un projet client par axe (association donnée par l'agence) ; le CEA n'a pas encore de photo de projet
+    const TRIP=[{client:"Schneider Electric", logo:"media/schneider.svg", bg:"", color:"#1f2a22"},
+                {client:"Opinel", logo:"media/opinel.svg", bg:"media/clients/opinel.jpg"},
+                {client:"CEA", logo:"media/logos/cea-white.png", bg:"", color:"#a42a2a"}];
+    tri.innerHTML=TEXTS.list.map((n,i)=>`<a class="tri-p" href="#${SLUGS[i]}" tabindex="-1"><span class="tri-img"><canvas class="tri-slice"></canvas><span class="tri-own" style="${TRIP[i].bg?`background-image:url(${TRIP[i].bg})`:`background:${TRIP[i].color}`}"></span></span><span class="tri-logo"><img src="${TRIP[i].logo}" alt="${esc(TRIP[i].client)}"></span><span class="tri-cap"><span class="tri-client">${esc(TRIP[i].client)}</span><span class="tri-t">${esc(n).replace(/-/g,"\u2011")}</span><span class="tri-d">${esc(TEXTS.desc[i])}</span><span class="tri-more">Lire la suite</span></span></a>`).join("");
+    const triP=[...tri.children];
+    const lastPoster=POSTER[vidFor(TEXTS.list.length-1)];
+    const R0=radius;
+    triP.forEach((a,i)=>{
+      const sx=card.x+i*card.w/3;
+      gsap.set(a,{left:sx, top:card.y, width:card.w/3, height:card.h,
+        borderRadius:i===0?`${R0}px 0px 0px ${R0}px`:(i===2?`0px ${R0}px ${R0}px 0px`:"0px 0px 0px 0px")});
+      // l'image commune garde sa taille et sa place : chaque lame en montre un tiers (même recadrage que la vidéo)
+      const sl=a.querySelector(".tri-slice");
+      sl.style.backgroundImage=`url(${lastPoster})`;
+      Object.assign(sl.style,{width:px(card.w), height:px(card.h), left:px(-i*card.w/3)});
+      sl.width=Math.round(card.w); sl.height=Math.round(card.h);
+      gsap.set(a.querySelectorAll(".tri-client,.tri-t,.tri-d,.tri-more"),{opacity:0, y:rm?0:18});
+      gsap.set(a.querySelector(".tri-logo"),{opacity:0, y:rm?0:90, z:70, scale:rm?1:.82});
+    });
+    if(rm){
+      tl.to([media,list,s2],{autoAlpha:0, duration:RP*.2}, t);
+      tl.set(tri,{autoAlpha:1}, t+RP*.15);
+      triP.forEach((a,i)=>{ tl.set(a,{left:g+i*(w3+gap), top:imgTop, width:w3, height:imgH, borderRadius:R0}, t+RP*.15); tl.set(a.querySelector(".tri-own"),{opacity:1}, t+RP*.15); });
+      tl.fromTo(tri,{opacity:0},{opacity:1, duration:RP*.25}, t+RP*.2);
+      tl.to(tri.querySelectorAll(".tri-client,.tri-t,.tri-d,.tri-more,.tri-logo"),{opacity:1, duration:RP*.2}, t+RP*.4);
+    } else {
+      // a. image pleine carte
+      tl.to([xpCtrl,mcapIn],{autoAlpha:0, duration:RP*.08}, t);
+      tl.to(mcap,{height:0, duration:RP*.16, ease:INOUT}, t+RP*.02);
+      tl.to(media,{"--m":"0px", duration:RP*.16, ease:INOUT}, t+RP*.02);
+      // b. la carte laisse place aux trois lames, posées exactement sur elle, qui s'écartent
+      const cut=t+RP*.2;
+      tl.set(tri,{autoAlpha:1}, cut); tl.set(media,{autoAlpha:0}, cut+.01);
+      triP.forEach((a,i)=>tl.to(a,{left:card.x+i*card.w/3+(i-1)*gap*1.6, duration:RP*.12, ease:"power2.out"}, cut+.02));
+      triP.forEach((a,i)=>tl.to(a,{borderRadius:`${R0*.55}px`, duration:RP*.12, ease:"power2.out"}, cut+.02));
+      // c. les lames gagnent leur place, en vague ; chacune passe de l'image commune à la sienne
+      triP.forEach((a,i)=>{
+        const at=cut+RP*.12+i*RP*.06;
+        tl.to(a,{left:g+i*(w3+gap), top:imgTop, width:w3, height:imgH, borderRadius:R0, duration:RP*.42, ease:INOUT}, at);
+        tl.to(a.querySelector(".tri-own"),{opacity:1, duration:RP*.13, ease:"none"}, at+RP*.02);
+      });
+      // d. titre, liste, légendes
+      tl.to(s2,{y:`+=${headTop-ts.y}`, duration:RP*.42, ease:INOUT}, cut+RP*.12);
+      tl.to(list,{autoAlpha:0, y:-20, duration:RP*.18, ease:"power2.in"}, cut);
+      triP.forEach((a,i)=>tl.to(a.querySelectorAll(".tri-client,.tri-t,.tri-d,.tri-more"),{opacity:1, y:0, duration:RP*.26, ease:"power3.out", stagger:RP*.04}, cut+RP*.46+i*RP*.06));
+      // les logos arrivent en retard sur leur panneau, comme posés sur un plan plus proche
+      triP.forEach((a,i)=>tl.to(a.querySelector(".tri-logo"),{opacity:1, y:0, scale:1, duration:RP*.34, ease:"power3.out"}, cut+RP*.38+i*RP*.07));
+    }
+    t+=RP;
+    L.rc=t; tl.to({}, {duration:25}, t);
+    t+=25; L.end=t;
 
     // aimantation : transitions, puis un cran au milieu de chaque expertise
     const c=[1,3,5].map(n=>L.ex+E*n/6);
-    zones=[[L.tr,L.e2],[L.tl,c[0]],[c[0],c[1]],[c[1],c[2]],[c[2],L.pj],[L.pj,L.end]];
+    zones=[[L.tr,L.e2],[L.tl,c[0]],[c[0],c[1]],[c[1],c[2]],[c[2],L.pj],[L.pj,L.rc]];
 
     setSmooth();
     st=ScrollTrigger.create({trigger:stage, start:"top top", end:"+="+(t/100*vh), pin:true, refreshPriority:1,
@@ -715,6 +937,17 @@
     update();
   }
 
+  // fige l'image vidéo du moment dans les trois lames (recadrage identique à object-fit: cover)
+  let triShot=false;
+  function snapSlices(){
+    const v=videos[Math.max(0,activeVid)];
+    if(!v || v.readyState<2 || !v.videoWidth) return;
+    tri.querySelectorAll(".tri-slice").forEach(c=>{
+      const ctx=c.getContext("2d"), W=c.width, H=c.height, sc=Math.max(W/v.videoWidth, H/v.videoHeight);
+      const dw=v.videoWidth*sc, dh=v.videoHeight*sc;
+      try{ ctx.drawImage(v,(W-dw)/2,(H-dh)/2,dw,dh); }catch(e){}
+    });
+  }
   function update(){
     if(!tl||!st) return;
     const time=tl.duration()*st.progress;
@@ -732,10 +965,33 @@
     const target = shownStep();
     if(target!==step) setStep(target);
     // la vidéo tourne quand la liste est posée, avant la sortie vers les projets, et tant que la scène est à l'écran
-    const was=inPhase; inPhase=time>=L.tl+CFG.TOLIST*.6 && inView;
+    const was=inPhase; inPhase=time>=L.tl+CFG.TOLIST*.6 && time<L.pj+CFG.R*.15 && inView;
     if(was!==inPhase) syncVideo();
-    mediaLink.tabIndex = (time>=L.tl+CFG.TOLIST*.6) ? 0 : -1;
+    mediaLink.tabIndex = (time>=L.tl+CFG.TOLIST*.6 && time<L.pj) ? 0 : -1;
+    if(time>=L.pj && !triShot){ triShot=true; snapSlices(); } else if(time<L.pj) triShot=false;
+    const rec=time>=L.pj+CFG.R*.6; tri.classList.toggle("on",rec);
+    tri.querySelectorAll(".tri-p").forEach(a=>a.tabIndex=rec?0:-1);
   }
+
+  /* ---------- navigation sans rupture : ce qu'on a cliqué devient l'en-tête de la page, et y revient au retour ---------- */
+  let navSrc=null;
+  document.addEventListener("click",e=>{
+    const a=e.target.closest("a[href^='#']"); if(!a) return;
+    const key=a.getAttribute("href").slice(1); let m=null, t=null;
+    if(a.matches(".ty-more")){
+      const i=+a.closest(".ty-txt").dataset.i, figs=[...document.querySelectorAll(`.ty-refs[data-i="${i}"] .ty-ref`)];
+      // le visuel du chapitre le plus proche du centre de l'écran
+      m=figs.sort((x,y)=>Math.abs(x.getBoundingClientRect().top+x.offsetHeight/2-innerHeight/2)-Math.abs(y.getBoundingClientRect().top+y.offsetHeight/2-innerHeight/2))[0];
+      t=a.closest(".ty-txt").querySelector(".ty-t");
+    } else if(a.matches(".cl-link")){ const pn=a.closest(".panel"); m=pn.querySelector(".p-media"); t=pn.querySelector("h3"); }
+    else if(a.matches(".of-link")){ const c=a.closest(".of-card"); m=c; t=c.querySelector(".of-text"); }
+    else if(a.matches(".tri-p")){ m=a.querySelector(".tri-img"); t=a.querySelector(".tri-t"); }
+    else if(a.matches(".pg-next")) return;
+    navSrc=m?{key, media:m, title:t}:null;
+  }, true);
+  const srcFor=key=>navSrc&&navSrc.key===key&&navSrc.media.isConnected?navSrc:null;
+  // la capture de la transition doit voir l'image réelle, pas le calque WebGL
+  const domShow=(el,on)=>{ if(el && window.Matter) Matter.domShow(el,on); };
 
   /* ---------- page expertise (View Transitions, repli sans animation) ---------- */
   let lastFocus=null, savedY=0;
@@ -753,10 +1009,14 @@
     xpVideo.src=SRC[vi]; xpVideo.poster=POSTER[vi];
     try{ xpVideo.currentTime=videos[vi].currentTime||0; }catch(e){}
     xpTitle.textContent=TEXTS.list[i].replace(/-/g,"\u2011");   // trait d'union insécable : « e-commerce » ne se coupe pas
-    const itemTitle=activeItemTitle();
-    media.style.viewTransitionName="xp-media"; if(itemTitle) itemTitle.style.viewTransitionName="xp-title";
+    const src=srcFor(SLUGS[i]);
+    const itemTitle=src&&src.title?src.title:activeItemTitle();
+    const vtSrc=src?src.media:(tri.classList.contains("on")?tri.children[i]:media);
+    domShow(vtSrc,true);
+    vtSrc.style.viewTransitionName="xp-media"; if(itemTitle) itemTitle.style.viewTransitionName="xp-title";
     const swap=()=>{
-      media.style.viewTransitionName="none"; if(itemTitle) itemTitle.style.viewTransitionName="none";
+      vtSrc.style.viewTransitionName="none"; if(itemTitle) itemTitle.style.viewTransitionName="none";
+      domShow(vtSrc,false);
       xpPage.style.viewTransitionName="none";
       $("xpHero").style.viewTransitionName="xp-media"; xpTitle.style.viewTransitionName="xp-title";
       xpPage.classList.add("open"); xpPage.scrollTop=0;
@@ -771,10 +1031,14 @@
   }
   function closePage(){
     if(!pageOpen) return;
-    const itemTitle=activeItemTitle();
+    const src=srcFor(SLUGS[step]);
+    const itemTitle=src&&src.title?src.title:activeItemTitle();
     const swap=()=>{
       $("xpHero").style.viewTransitionName="none"; xpTitle.style.viewTransitionName="none";
-      media.style.viewTransitionName="xp-media"; if(itemTitle) itemTitle.style.viewTransitionName="xp-title";
+      const vtDst=src?src.media:(tri.classList.contains("on")?tri.children[step]:media);
+      domShow(vtDst,true); setTimeout(()=>domShow(vtDst,false),900);
+      vtDst.style.viewTransitionName="xp-media"; if(itemTitle) itemTitle.style.viewTransitionName="xp-title";
+      if(vtDst!==media) setTimeout(()=>{ vtDst.style.viewTransitionName="none"; },900);
       // retirer l'ancre ramène le navigateur en haut : on rend la position de défilement avant de révéler la page
       document.getElementById("main").removeAttribute("inert");
       if(lenis){ lenis.start(); lenis.scrollTo(savedY,{immediate:true, force:true}); } else window.scrollTo(0,savedY);
@@ -787,13 +1051,100 @@
     const done=()=>{ if(itemTitle) itemTitle.style.viewTransitionName="none"; if(lastFocus&&lastFocus.focus) lastFocus.focus({preventScroll:true}); };
     vt?vt.finished.then(done):done();
   }
+
+  /* ---------- pages étude de cas et offre ---------- */
+  const PG={};
+  const pgList=[];
+  document.querySelectorAll(".panel").forEach((pn,i,all)=>{
+    const name=pn.querySelector("h3").textContent.replace(/\u00a0/g," ").trim(), key="etude-"+slug(name);
+    pn.querySelector(".cl-link").setAttribute("href","#"+key);
+    PG[key]={kind:"case", name, img:pn.querySelector(".p-media img").getAttribute("src"), color:getComputedStyle(pn).getPropertyValue("--pc").trim(), el:pn};
+    pgList.push(key);
+  });
+  const caseKeys=[...pgList];
+  const OFFER_KEYS=["offre-sur-mesure","offre-e-commerce","offre-audits"];
+  document.querySelectorAll(".of-card").forEach((c,i)=>{
+    const key=OFFER_KEYS[i]; c.querySelector(".of-link").setAttribute("href","#"+key);
+    PG[key]={kind:"offer", name:c.querySelector(".of-text").textContent.trim(), el:c};
+  });
+  document.querySelectorAll(".ty-txt").forEach((b,i)=>b.querySelector(".ty-more").setAttribute("href","#"+SLUGS[i]));
+  let pgOpen=false, pgKey="";
+  const nextOf=key=>{ const list=PG[key].kind==="case"?caseKeys:OFFER_KEYS; return list[(list.indexOf(key)+1)%list.length]; };
+  function fillPg(key){
+    const d=PG[key]; pgKey=key;
+    pgHero.classList.toggle("has-img",!!d.img); pgHero.classList.toggle("is-offer",d.kind==="offer");
+    pgHero.style.setProperty("--pc", d.kind==="case"?d.color:"var(--card)");
+    if(d.img) pgImg.src=d.img; else pgImg.removeAttribute("src");
+    pgTitle.textContent=d.name;
+    const af="À fournir";
+    pgMeta.innerHTML=d.kind==="case"
+      ? [["Client",d.name],["Expertise",af],["Année",af],["Livrables",af]].map(([k,v])=>`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")
+      : [["Pour qui",af],["Durée",af],["Livrables",af],["Contact",af]].map(([k,v])=>`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("");
+    pgLead.textContent=d.kind==="case"?"Récit du projet à fournir : contexte, enjeux, réponse, résultats.":"Détail de l'offre à fournir : démarche, étapes, exemples.";
+    const n=nextOf(key); pgNext.setAttribute("href","#"+n);
+    pgNextK.textContent=d.kind==="case"?"Projet suivant":"Offre suivante"; pgNextT.textContent=PG[n].name;
+  }
+  function openPg(key, instant){
+    if(pgOpen){
+      if(key===pgKey) return;
+      // projet suivant : son titre en bas de page devient le titre de la nouvelle page
+      pgNextT.style.viewTransitionName="xp-title"; pgTitle.style.viewTransitionName="none"; pgHero.style.viewTransitionName="none";
+      const vt=withTransition(()=>{ pgNextT.style.viewTransitionName="none"; fillPg(key); pgPage.scrollTop=0; pgTitle.style.viewTransitionName="xp-title"; });
+      const f=()=>{ pgTitle.style.viewTransitionName="none"; pgTitle.focus({preventScroll:true}); };
+      vt?vt.finished.then(f):f();
+      navSrc={key, media:PG[key].kind==="case"?PG[key].el.querySelector(".p-media"):PG[key].el, title:PG[key].kind==="case"?PG[key].el.querySelector("h3"):PG[key].el.querySelector(".of-text")};
+      return;
+    }
+    if(pageOpen) closePage();
+    const d=PG[key], src=srcFor(key)||{media:d.kind==="case"?d.el.querySelector(".p-media"):d.el, title:d.kind==="case"?d.el.querySelector("h3"):d.el.querySelector(".of-text")};
+    navSrc={key, ...src};
+    lastFocus=document.activeElement; savedY=lenis?lenis.scroll:scrollY;
+    fillPg(key);
+    src.media.style.viewTransitionName="xp-media"; if(src.title) src.title.style.viewTransitionName="xp-title";
+    domShow(src.media,true);
+    const swap=()=>{
+      src.media.style.viewTransitionName="none"; if(src.title) src.title.style.viewTransitionName="none";
+      domShow(src.media,false);
+      pgHero.style.viewTransitionName="xp-media"; pgTitle.style.viewTransitionName="xp-title";
+      pgPage.classList.add("open"); pgPage.scrollTop=0; pgOpen=true;
+      if(d.img) hdr.classList.add("on-media");
+      if(lenis) lenis.stop();
+      document.getElementById("main").setAttribute("inert","");
+    };
+    const vt=instant?(swap(),null):withTransition(swap);
+    const f=()=>{ pgHero.style.viewTransitionName="none"; pgTitle.style.viewTransitionName="none"; };
+    vt?vt.finished.then(f):f();
+    setTimeout(()=>pgTitle.focus({preventScroll:true}), instant?0:780);
+  }
+  function closePg(){
+    if(!pgOpen) return;
+    const d=PG[pgKey], src=srcFor(pgKey)||{media:d.kind==="case"?d.el.querySelector(".p-media"):d.el, title:null};
+    pgHero.style.viewTransitionName="xp-media"; pgTitle.style.viewTransitionName="xp-title";
+    const swap=()=>{
+      pgHero.style.viewTransitionName="none"; pgTitle.style.viewTransitionName="none";
+      src.media.style.viewTransitionName="xp-media"; if(src.title) src.title.style.viewTransitionName="xp-title";
+      domShow(src.media,true);
+      document.getElementById("main").removeAttribute("inert");
+      if(lenis){ lenis.start(); lenis.scrollTo(savedY,{immediate:true, force:true}); } else window.scrollTo(0,savedY);
+      ScrollTrigger.update();
+      pgPage.classList.remove("open"); pgOpen=false; hdr.classList.remove("on-media");
+    };
+    const vt=withTransition(swap);
+    const done=()=>{ src.media.style.viewTransitionName="none"; if(src.title) src.title.style.viewTransitionName="none"; domShow(src.media,false);
+      if(lastFocus&&lastFocus.focus) lastFocus.focus({preventScroll:true}); };
+    vt?vt.finished.then(done):done();
+  }
+  $("pgBack").addEventListener("click",()=>{ location.hash=""; });
+
   function route(instant){
     const h=location.hash.slice(1), i=SLUGS.indexOf(h);
-    if(i>=0) openPage(i, instant); else closePage();
+    if(i>=0){ closePg(); openPage(i, instant); }
+    else if(PG[h]) openPg(h, instant);
+    else { closePage(); closePg(); }
   }
   addEventListener("hashchange",()=>route(false));
   backBtn.addEventListener("click",()=>{ history.length>1 && SLUGS.includes(location.hash.slice(1)) ? (location.hash="") : closePage(); });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && pageOpen) location.hash=""; });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && (pageOpen||pgOpen)) location.hash=""; });
   function syncXpPlay(){
     const p=xpVideo.paused;
     xpPlay.classList.toggle("is-paused",p);
@@ -803,7 +1154,9 @@
   xpVideo.addEventListener("play",syncXpPlay); xpVideo.addEventListener("pause",syncXpPlay);
 
   /* ---------- nav : indicateur qui glisse sous le survol ou le focus ---------- */
-  const navLinks=[...nav.querySelectorAll(".nav-list a")];
+  const navLinks=[...nav.querySelectorAll(".nav-list a, .nav-list .nav-btn")];
+  // recharger : on repart du haut, sans ancre, pour rejouer le préchargement et l'intro
+  $("reload").addEventListener("click",()=>{ try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){} scrollTo(0,0); location.reload(); });
   function glowTo(a){
     const nr=nav.getBoundingClientRect(), r=a.getBoundingClientRect(), x=r.left-nr.left-1;
     if(reduced() || gsap.getProperty(glow,"autoAlpha")<.05) gsap.set(glow,{x, width:r.width});
@@ -821,7 +1174,8 @@
   const skipIntro=()=>{ if(intro) intro.progress(1); };
   function listenSkip(on){ ["wheel","touchstart","keydown"].forEach(ev=>(on?addEventListener:removeEventListener)(ev,skipIntro,{passive:true})); }
   function endIntro(){
-    gsap.set([hdr,...s1.querySelectorAll(".wi")],{clearProps:"all"});
+    gsap.set([hdr,...s1.querySelectorAll(".wi"),...logo.querySelectorAll(":scope > span:not(.x)"),...nav.querySelectorAll(".nav-list a, .nav-list .nav-btn, .burger-btn")],{clearProps:"all"});
+    logo.classList.remove("intro-clip"); nav.querySelector(".nav-list").classList.remove("intro-mask");
     s1.classList.remove("intro"); listenSkip(false); update();
   }
   function abortIntro(){ if(!intro) return; const t=intro; intro=null; t.kill(); endIntro(); }
@@ -833,11 +1187,20 @@
     const rows=new Map();
     model.w1els.forEach(w=>{ const top=Math.round(w.getBoundingClientRect().top); if(!rows.has(top)) rows.set(top,[]); rows.get(top).push(w.querySelector(".wi")); });
     const lines=[...rows.entries()].sort((a,b)=>a[0]-b[0]).map(e=>e[1]);
+    const letters=[...logo.querySelectorAll(":scope > span:not(.x)")];
+    const navEls=[...nav.querySelectorAll(".nav-list a, .nav-list .nav-btn")], burger=nav.querySelector(".burger-btn");
     gsap.set(lines.flat(),{yPercent:112});
-    gsap.set(hdr,{autoAlpha:0, y:-14});
+    gsap.set(letters,{yPercent:118, display:"inline-block"}); logo.classList.add("intro-clip");
+    nav.querySelector(".nav-list").classList.add("intro-mask");
+    gsap.set(navEls,{yPercent:120}); gsap.set(burger,{autoAlpha:0});
     intro=gsap.timeline({onComplete:()=>{ intro=null; endIntro(); }});
-    lines.forEach((ws,li)=>intro.to(ws,{yPercent:0, duration:1.25, ease:OUT, stagger:.045}, .12+li*.14));
-    intro.to(hdr,{autoAlpha:1, y:0, duration:.8, ease:OUT}, .12+lines.length*.14+.2);
+    /* Une seule grammaire pour tout ce qui apparaît : chaque élément monte dans sa propre fenêtre, sur la même courbe.
+       La phrase monte pendant que le « b » du préchargement s'ouvre sur la page ; puis le logo de l'en-tête et le menu. */
+    lines.forEach((ws,li)=>intro.to(ws,{yPercent:0, duration:1.3, ease:OUT, stagger:.04}, .05+li*.12));
+    intro.to(letters,{yPercent:0, duration:1.1, ease:OUT, stagger:.06}, .75);
+    intro.to(navEls,{yPercent:0, duration:1.1, ease:OUT, stagger:.05}, .85);
+    intro.to(burger,{autoAlpha:1, duration:.6, ease:"power2.out"}, .95);
+    intro.to({}, {duration:.01}, 2.5);
   }
 
   /* ---------- aimantation : jamais d'arrêt au milieu d'une transition ---------- */
@@ -872,6 +1235,127 @@
         pjStack=$("pjStack"), panels=[...document.querySelectorAll(".panel")],
         ftPath=$("ftPath"), footer=$("contact");
 
+
+  /* ---------- Matière : les visuels rendus en WebGL ----------
+     Chaque image reste dans le DOM (texte alternatif, repli, capture des transitions) mais s'affiche sur un calque WebGL :
+     - elle se courbe selon la vitesse de défilement, avec un léger décalage des couches rouge et bleue ;
+     - elle apparaît par un front ondulé qui monte depuis le bas, la première fois qu'elle entre à l'écran ;
+     Coupé en mouvement réduit ou sans WebGL : les images DOM restent affichées telles quelles. */
+  const Matter=window.Matter=(()=>{
+    const probe=document.createElement("canvas");
+    const ok=!!(probe.getContext && (probe.getContext("webgl")));
+    const VS=`attribute vec2 p;uniform vec4 uR;uniform vec2 uRes;uniform float uVel;varying vec2 v;
+      void main(){v=p;vec2 q=uR.xy+p*uR.zw;q.y+=sin(p.x*3.14159)*uVel*uR.w*.09;vec2 c=q/uRes*2.-1.;gl_Position=vec4(c.x,-c.y,0.,1.);}`;
+    const FS=`precision mediump float;uniform sampler2D t;uniform vec2 uSize,uTex,uM;uniform vec4 uImg;
+      uniform float uRad,uN,uVelF,uHov,uRev,uTime;varying vec2 v;
+      float sdr(vec2 q,vec2 h,float r,float n){vec2 d=abs(q)-h+r;vec2 m=max(d,0.);float k=pow(pow(m.x,n)+pow(m.y,n),1./n);return min(max(d.x,d.y),0.)+k-r;}
+      vec3 tx(vec2 px){vec2 pp=(px-uImg.xy);float s=max(uImg.z/uTex.x,uImg.w/uTex.y);vec2 dr=uTex*s;vec2 uv=(pp-(uImg.zw-dr)*.5)/dr;return texture2D(t,clamp(uv,.001,.999)).rgb;}
+      void main(){
+        vec2 px=v*uSize;vec2 dm=px-uM*uSize;float d=length(dm)+.0001;
+        float sh=uVelF*6.;
+        vec3 c=vec3(tx(px+vec2(0.,sh)).r,tx(px).g,tx(px-vec2(0.,sh)).b);
+        float a=1.;
+        if(uRad>0.){a=1.-smoothstep(-.75,.75,sdr(v*uSize-uSize*.5,uSize*.5,uRad,uN));}
+        float edge=(1.-v.y)+sin(v.x*6.2832+uTime*1.3)*.035;
+        a*=1.-smoothstep(uRev*1.12-.09,uRev*1.12,edge);
+        gl_FragColor=vec4(c*a,a);}`;
+    const views=[];
+    let vel=0, lastY=scrollY, mx=-1e4, my=-1e4;
+    addEventListener("pointermove",e=>{ mx=e.clientX; my=e.clientY; },{passive:true});
+    function View(canvas, items, opts){
+      const gl=canvas.getContext("webgl",{premultipliedAlpha:true, antialias:true, alpha:true});
+      if(!gl) return null;
+      const sh=(type,src)=>{ const o=gl.createShader(type); gl.shaderSource(o,src); gl.compileShader(o); return o; };
+      const pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS)); gl.linkProgram(pr);
+      if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ console.warn("Matière : "+gl.getProgramInfoLog(pr)); return null; }
+      gl.useProgram(pr);
+      // grille subdivisée : la courbure a besoin de sommets
+      const N=24, pts=[], idx=[];
+      for(let y=0;y<=N;y++) for(let x=0;x<=N;x++) pts.push(x/N,y/N);
+      for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const a=y*(N+1)+x; idx.push(a,a+1,a+N+1,a+1,a+N+2,a+N+1); }
+      const vb=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,vb); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pts),gl.STATIC_DRAW);
+      const ib=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+      const loc=gl.getAttribLocation(pr,"p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+      const U={}; ["uR","uRes","uVel","uVelF","uSize","uTex","uM","uImg","uRad","uN","uHov","uRev","uTime","t"].forEach(n=>U[n]=gl.getUniformLocation(pr,n));
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+      const squircle=CSS.supports("corner-shape","squircle");
+      const view={canvas, gl, items:[], dead:false, visible:false};
+      items.forEach(({clip,img})=>{
+        const it={clip, img, tex:null, tw:1, th:1, hov:0, rev:0, revealed:false, rad:0};
+        const im=new Image(); im.decoding="async";
+        im.onload=()=>{ if(view.dead) return;
+          it.tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,it.tex);
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);
+          gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im);
+          ["TEXTURE_WRAP_S","TEXTURE_WRAP_T"].forEach(k=>gl.texParameteri(gl.TEXTURE_2D,gl[k],gl.CLAMP_TO_EDGE));
+          gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+          it.tw=im.naturalWidth; it.th=im.naturalHeight;
+          img.style.opacity="0"; img.dataset.gl="1";
+        };
+        im.src=img.currentSrc||img.src;
+        view.items.push(it);
+      });
+      canvas.addEventListener("webglcontextlost",e=>{ e.preventDefault(); view.dead=true; view.items.forEach(it=>{ it.img.style.opacity=""; delete it.img.dataset.gl; }); });
+      view.measure=()=>{ view.items.forEach(it=>{ it.rad=opts.mask?parseFloat(getComputedStyle(it.clip).borderTopLeftRadius)||0:0; }); };
+      view.measure();
+      view.render=time=>{
+        if(view.dead) return;
+        const dpr=Math.min(2,devicePixelRatio||1), cw=Math.round(canvas.clientWidth*dpr), ch=Math.round(canvas.clientHeight*dpr);
+        if(canvas.width!==cw||canvas.height!==ch){ canvas.width=cw; canvas.height=ch; }
+        gl.viewport(0,0,cw,ch); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+        const R=canvas.getBoundingClientRect(); if(!R.width) return;
+        const sx=cw/R.width, sy=ch/R.height;
+        gl.uniform2f(U.uRes,cw,ch); gl.uniform1f(U.uVel,opts.bend?vel:vel*.35); gl.uniform1f(U.uVelF,vel); gl.uniform1f(U.uTime,time); gl.uniform1f(U.uN,squircle?4:2);
+        view.items.forEach(it=>{
+          if(!it.tex) return;
+          const c=it.clip.getBoundingClientRect();
+          if(c.bottom<R.top-40||c.top>R.bottom+40||c.right<R.left||c.left>R.right) return;
+          if(!it.revealed && c.top<innerHeight*.92){ it.revealed=true; gsap.to(it,{rev:1, duration:1.5, ease:"power3.out"}); }
+          const i=it.img.getBoundingClientRect();
+          gl.bindTexture(gl.TEXTURE_2D,it.tex); gl.uniform1i(U.t,0);
+          gl.uniform4f(U.uR,(c.left-R.left)*sx,(c.top-R.top)*sy,c.width*sx,c.height*sy);
+          gl.uniform2f(U.uSize,c.width*sx,c.height*sy);
+          gl.uniform4f(U.uImg,(i.left-c.left)*sx,(i.top-c.top)*sy,i.width*sx,i.height*sy);
+          gl.uniform2f(U.uTex,it.tw,it.th);
+          gl.uniform2f(U.uM,(mx-c.left)/c.width,(my-c.top)/c.height);
+          gl.uniform1f(U.uHov,it.hov); gl.uniform1f(U.uRev,it.rev); gl.uniform1f(U.uRad,it.rad*sx);
+          gl.drawElements(gl.TRIANGLES,idx.length,gl.UNSIGNED_SHORT,0);
+        });
+      };
+      new IntersectionObserver(es=>es.forEach(e=>view.visible=e.isIntersecting),{rootMargin:"200px"}).observe(opts.host||canvas);
+      views.push(view); return view;
+    }
+    let t0=performance.now();
+    gsap.ticker.add(()=>{
+      const y=lenis?lenis.scroll:scrollY, dy=y-lastY; lastY=y;
+      vel+=(gsap.utils.clamp(-1,1,dy/45)-vel)*.12;
+      const time=(performance.now()-t0)/1000;
+      views.forEach(v=>{ if(v.visible) v.render(time); });
+    });
+    addEventListener("resize",()=>views.forEach(v=>v.measure&&v.measure()));
+    return {
+      ok,
+      // typologies : un calque collant qui couvre la colonne des visuels pendant toute la section
+      typo(){
+        const col=document.querySelector(".ty-col"); if(!col) return null;
+        const host=document.createElement("div"); host.className="ty-gl"; host.setAttribute("aria-hidden","true");
+        const cv=document.createElement("canvas"); host.appendChild(cv); col.prepend(host);
+        return View(cv,[...col.querySelectorAll(".ty-ref")].map(f=>({clip:f, img:f.querySelector("img")})),{mask:true, bend:true, host:col});
+      },
+      // études de cas : un calque dans chaque visuel (le DOM fait la découpe)
+      panels(){
+        return [...document.querySelectorAll(".p-media")].map(pm=>{
+          const cv=document.createElement("canvas"); cv.className="p-gl"; cv.setAttribute("aria-hidden","true"); pm.appendChild(cv);
+          return View(cv,[{clip:pm, img:pm.querySelector("img")}],{mask:false, bend:false, host:pm});
+        });
+      },
+      domShow(el,on){
+        el.querySelectorAll("img[data-gl]").forEach(im=>im.style.opacity=on?"":"0");
+        el.querySelectorAll("canvas.p-gl").forEach(c=>c.style.visibility=on?"hidden":"");
+      }
+    };
+  })();
+
   function buildSections(){
     if(sectionsCtx) sectionsCtx.revert();
     sectionsCtx=gsap.context(()=>{
@@ -879,9 +1363,8 @@
 
       /* --- Titres : révélés ligne par ligne, puis rendus propres (texte d'origine restauré) --- */
       // Titres de section : ligne par ligne, avec flou (réglages LBA Factory) ; découpage annulé à la fin
-      document.querySelectorAll(".reveal,.ty-t").forEach(el=>{
-        const ch=el.closest(".ty-ch");
-        const st=ch?{trigger:ch, start:"top 45%", once:true}:{trigger:el, start:"top 85%", once:true};
+      document.querySelectorAll(".reveal").forEach(el=>{
+        const ch=null, st={trigger:el, start:"top 85%", once:true};
         if(rm){ gsap.fromTo(el,{opacity:0},{opacity:1, duration:.25, scrollTrigger:st, clearProps:"opacity"}); return; }
         const split=SplitText.create(el,{type:"lines", linesClass:"rl"});
         gsap.from(split.lines,{opacity:0, y:14, filter:"blur(8px)", duration:1.1, stagger:.07, ease:"power3.out",
@@ -920,8 +1403,9 @@
 
 
       /* --- Inclinaison légère des blocs selon la vitesse de défilement, qui revient à plat à l'arrêt --- */
-      if(!rm){
-        const skewEls=gsap.utils.toArray(".ty-ref");
+      // avec le calque WebGL, la courbure du shader remplace l'inclinaison des cadres
+      if(!rm && !window.__glOn){
+        const skewEls=window.__glOn?[]:gsap.utils.toArray(".ty-ref");
         const setSkew=gsap.quickSetter(skewEls,"skewY","deg"), clampSkew=gsap.utils.clamp(-3,3), proxy={k:0};
         gsap.set(skewEls,{transformOrigin:"right center", force3D:true});
         ScrollTrigger.create({onUpdate:self=>{
@@ -933,21 +1417,48 @@
         }});
       }
 
-      /* --- Typologies : anneau en trois arcs (position et avancée dans la section) --- */
-      gsap.utils.toArray(".ty-ch").forEach((ch,i)=>{
-        // requête à chaque appel : le découpage en lignes du titre puis son annulation recréent l'anneau
-        const paint=pr=>ch.querySelectorAll(".ty-ring .a-f").forEach((c,j)=>{ const seg=+c.dataset.seg, f=j<i?1:(j===i?pr:0); c.setAttribute("stroke-dasharray",`${(seg*f).toFixed(4)} 1`); c.style.opacity=f>.001?1:0; });   // un arc vide garderait un point (bout arrondi)
-        paint(0);
-        const t=ScrollTrigger.create({trigger:ch, start:"top top", end:"bottom bottom", onUpdate:self=>paint(self.progress), onRefresh:self=>paint(self.progress)});
-        ch._ring=()=>paint(t.progress);   // repeint après l'annulation du découpage du titre
+      /* --- Typologies : texte ancré à gauche ; à chaque chapitre, l'ancien texte s'en va ligne à ligne et le nouveau arrive ---
+         Le sens suit le défilement (vers le haut en descendant, vers le bas en remontant). L'anneau reste en place :
+         arc plein pour les chapitres passés, arc en cours rempli au défilement. */
+      const tyBlocks=gsap.utils.toArray(".ty-txt"), tyGroups=gsap.utils.toArray(".ty-refs"), tyArcs=gsap.utils.toArray(".ty-ring .a-f");
+      const arcP=[0,0,0];
+      const paintArcs=()=>tyArcs.forEach((c,j)=>{ const f=arcP[j]; c.setAttribute("stroke-dasharray",`${(.29*f).toFixed(4)} 1`); c.style.opacity=f>.001?1:0; });
+      tyBlocks.forEach(b=>{
+        // lignes du titre et de la description ; redécoupées si la largeur change
+        SplitText.create(b.querySelector(".ty-t"),{type:"lines", linesClass:"tl-line", autoSplit:true, onSplit:self=>{ b._lines=self.lines; }});
       });
+      const parts=b=>[...(b._lines||[]), b.querySelector(".ty-more")];
+      let tyCur=0, tyShown=false;
+      gsap.set(tyBlocks.map(b=>[b.querySelector(".ty-t"),b.querySelector(".ty-more")]).flat(),{opacity:1});
+      tyBlocks.forEach((b,i)=>{ if(i) gsap.set(parts(b),{opacity:0}); });
+      function tyShow(i,dir){
+        if(i===tyCur && tyShown) return;
+        const out=tyBlocks[tyCur], inn=tyBlocks[i], first=!tyShown;
+        tyShown=true; tyCur=i;
+        tyBlocks.forEach(b=>b.classList.toggle("on",b===inn));
+        const pin=parts(inn), pout=out===inn?[]:parts(out);
+        gsap.killTweensOf([...pin,...pout]);
+        if(rm){ if(pout.length) gsap.to(pout,{opacity:0, duration:.2}); gsap.fromTo(pin,{opacity:0},{opacity:1, duration:.25}); return; }
+        if(pout.length) gsap.to(pout,{y:-16*dir, opacity:0, filter:"blur(6px)", duration:.42, ease:"power2.in", stagger:.03});
+        gsap.fromTo(pin,{y:22*dir, opacity:0, filter:"blur(8px)"},{y:0, opacity:1, filter:"blur(0px)", duration:first?1.1:.95, ease:"power3.out", stagger:.06, delay:pout.length?.24:0, clearProps:"filter"});
+      }
+      gsap.set(parts(tyBlocks[0]),{opacity:0});
+      ScrollTrigger.create({trigger:".typo", start:"top 55%", once:true, onEnter:()=>tyShow(tyCur,1)});
+      tyGroups.forEach((g,i)=>{
+        ScrollTrigger.create({trigger:g, start:"top center", end:"bottom center",
+          onToggle:self=>{ if(self.isActive && tyShown) tyShow(i, self.direction); },
+          onUpdate:self=>{ arcP[i]=self.progress; paintArcs(); },
+          onRefresh:self=>{ arcP[i]=self.progress; paintArcs(); }});
+      });
+      // clavier : un lien de chapitre qui reçoit le focus amène son chapitre à l'écran
+      tyBlocks.forEach((b,i)=>b.addEventListener("focusin",()=>{
+        if(i===tyCur) return; const g=tyGroups[i], y=g.getBoundingClientRect().top+scrollY-innerHeight*.35;
+        lenis?lenis.scrollTo(y,{immediate:true}):window.scrollTo(0,y);
+      }));
+      paintArcs();
 
-      /* --- Typologies : le texte du chapitre entre quand il arrive ; les visuels glissent à des vitesses différentes --- */
+      /* --- Typologies : les visuels glissent dans leur cadre à des vitesses différentes --- */
       if(!rm){
-        gsap.utils.toArray(".ty-ch").forEach(ch=>{
-          gsap.from(ch.querySelector(".ty-more"),{y:14, autoAlpha:0, filter:"blur(8px)", duration:1.1, ease:"power3.out", delay:.35, clearProps:"filter",
-            scrollTrigger:{trigger:ch, start:"top 45%", once:true}});
-        });
         gsap.utils.toArray(".ty-ref img").forEach(img=>{
           const k=parseFloat(img.dataset.speed||1);
           gsap.fromTo(img,{yPercent:-7*k},{yPercent:7*k, ease:"none",
@@ -1050,10 +1561,73 @@
   document.querySelectorAll("[data-go]").forEach(a=>a.addEventListener("click",e=>{ e.preventDefault(); goTo(a.dataset.go); }));
 
   let rt; addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(()=>{ measureLogo(); if(!pageOpen) build(true); },200); });
+
+  /* ---------- Préchargement ----------
+     Sur le bleu de la page, rien d'autre que le nom.
+     1. « la bonne agence » se compose : chaque lettre bascule depuis sa ligne de base, de gauche à droite,
+        pendant que l'approche se resserre, comme un mot qu'on règle à la main.
+     2. Le nom se replie en « lba » : chaque mot se rétracte vers son initiale, de sa dernière lettre à la première.
+     3. « lba » s'efface en fondu, puis le bleu laisse place à la page.
+     Le chargement réel (polices, première vidéo, page complète) décide du moment du repli :
+     au moins 1,6 s pour laisser lire le nom, au plus 4 s pour ne jamais bloquer. */
+  const Pre=(()=>{
+    const el=$("pre"), bg=$("preBg"), logoP=$("preLogo");
+    const chars=[...logoP.querySelectorAll(".c")], keep=chars.filter(c=>c.classList.contains("k")), drop=chars.filter(c=>c.classList.contains("d"));
+    const groups=[1,2,3].map(g=>drop.filter(c=>c.dataset.g===String(g)));
+    const parts={fonts:0, video:0, load:0}, W={fonts:.3, video:.45, load:.25};
+    const t0=performance.now();
+    const target=()=>Object.keys(parts).reduce((a,k)=>a+parts[k]*W[k],0);
+    let composed=null;
+    document.fonts.load('600 40px Raisonne').then(()=>{
+      gsap.set(logoP,{visibility:"visible"});
+      if(reduced()) return;
+      gsap.set(chars,{transformPerspective:700, transformOrigin:"50% 100%"});
+      composed=gsap.timeline()
+        .fromTo(chars,{yPercent:118, rotationX:-75, opacity:0},{yPercent:0, rotationX:0, opacity:1, duration:1.3, ease:"gsvOut", stagger:.032}, 0)
+        .fromTo(logoP,{letterSpacing:".1em"},{letterSpacing:"-.02em", duration:1.9, ease:"power4.out"}, 0);
+    });
+    document.fonts.ready.then(()=>{ parts.fonts=1; });
+    const v=videos[0];
+    if(v.readyState>=3) parts.video=1; else { v.addEventListener("canplaythrough",()=>parts.video=1,{once:true}); v.addEventListener("loadeddata",()=>{ parts.video=Math.max(parts.video,.6); },{once:true}); }
+    if(document.readyState==="complete") parts.load=1; else addEventListener("load",()=>{ parts.load=1; },{once:true});
+    let done=false;
+    function finish(onReveal){
+      const go=()=>{
+        if(done) return; done=true;
+        const end=()=>{ el.classList.add("gone"); document.documentElement.classList.remove("loading"); };
+        if(reduced()){ onReveal(); gsap.to(el,{autoAlpha:0, duration:.35, onComplete:end}); return; }
+        if(composed) composed.progress(1);
+        const tl=gsap.timeline({onComplete:end});
+        // repli : chaque lettre en trop prend sa largeur exacte, puis la rend ; le mot se rétracte vers son initiale
+        drop.forEach(c=>gsap.set(c,{width:c.getBoundingClientRect().width}));
+        tl.addLabel("fold", .1);
+        groups.forEach(g=>tl.to([...g].reverse(),{width:0, opacity:0, yPercent:-18, rotationX:55, filter:"blur(4px)",
+          duration:.78, ease:"gsvInOut", stagger:.05}, "fold"));
+        // les initiales se resserrent à peine en fin de repli, comme si elles s'aimantaient
+        tl.fromTo(keep,{scale:1},{scale:1.04, duration:.35, ease:"power2.out", yoyo:true, repeat:1, transformOrigin:"50% 80%"}, "fold+=.55");
+        // sortie : un fondu, rien d'autre. « lba » s'efface, puis le bleu laisse place à la page.
+        tl.addLabel("out", "fold+=1.2");
+        tl.to(logoP,{autoAlpha:0, duration:.7, ease:"power2.inOut"}, "out");
+        tl.add(()=>{ document.documentElement.classList.remove("loading"); onReveal(); }, "out+=.45");
+        tl.to(bg,{autoAlpha:0, duration:.8, ease:"power2.inOut"}, "out+=.45");
+        tl.to({}, {duration:.01}, "out+=1.3");
+      };
+      const cap=gsap.delayedCall(Math.max(0,(4000-(performance.now()-t0))/1000), go);
+      const check=()=>{
+        if(target()>=.999){ cap.kill(); gsap.delayedCall(Math.max(0,1600-(performance.now()-t0))/1000, go); }
+        else gsap.delayedCall(.1,check);
+      };
+      check();
+    }
+    return {finish};
+  })();
   RM.addEventListener("change",()=>{ build(true); buildSections(); });
   Promise.all([document.fonts.load('400 40px Maax'),document.fonts.load('600 20px Raisonne')]).then(()=>document.fonts.ready).then(()=>{
-    measureLogo(); build(false); buildSections();
-    if(SLUGS.includes(location.hash.slice(1))) route(true); else playIntro();
+    measureLogo(); build(false);
+    if(Matter.ok && !reduced()){ window.__glOn=!!Matter.typo(); Matter.panels(); }
+    buildSections();
+    const startPage=()=>{ if(SLUGS.includes(location.hash.slice(1)) || PG[location.hash.slice(1)]) route(true); else playIntro(); };
+    Pre.finish(startPage);
   });
 })();
 </script>
